@@ -24,8 +24,8 @@
     
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 
+<script src="static/prediction_engine.js"></script>
 <script>
-// Static site adapter - translates Flask API URLs to pre-generated JSON file paths
 var _sfCache = {};
 function _applyYearRange(data, ys, ye) {
     if (data.chart) {
@@ -37,11 +37,43 @@ function _applyYearRange(data, ys, ye) {
     }
     return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
 }
+var _clientMethods = {linear:1, exponential:1, moving_avg:1, analyst:1};
 function staticFetch(url) {
     var parts = url.split('?');
     var path = parts[0].replace('/api/chart/', '').replace('/api/', '');
     var params = new URLSearchParams(parts[1] || '');
+    var sd = params.get('start_date'), ed = params.get('end_date');
+    var _h = {'Content-Type': 'application/json'};
 
+    // Client-side prediction: when training window slider sets a date range
+    if (sd && ed && window._predEngine) {
+        var _tk = params.get('ticker') || 'JNJ';
+        var _mt = params.get('method') || 'linear';
+        if (path === 'prediction' && _clientMethods[_mt]) {
+            return window._predEngine.load(_tk).then(function(d) {
+                var p = window._predEngine.compute(d.quarters, _mt, 4, sd, ed);
+                if (!p) return new Response('{"chart":null}', {headers: _h});
+                var c = window._predEngine.buildPredChart(d.quarters, p, _tk, _mt, true);
+                return new Response(JSON.stringify({chart: JSON.stringify(c)}), {headers: _h});
+            });
+        }
+        if (path === 'surprise_analysis') {
+            return window._predEngine.load(_tk).then(function(d) {
+                var filt = d.quarters.filter(function(q) { return q.d >= sd && q.d <= ed; });
+                if (filt.length < 2) return new Response('{"chart":null}', {headers: _h});
+                var c = window._predEngine.buildSurpChart(d.quarters, filt, _tk, true);
+                return new Response(JSON.stringify({chart: JSON.stringify(c)}), {headers: _h});
+            });
+        }
+        if (path === 'prediction_data' && _clientMethods[_mt]) {
+            return window._predEngine.load(_tk).then(function(d) {
+                var p = window._predEngine.compute(d.quarters, _mt, 4, sd, ed);
+                return new Response(JSON.stringify(p || {}), {headers: _h});
+            });
+        }
+    }
+
+    // Standard file path resolution
     var ys = params.get('year_start');
     var ye = params.get('year_end');
     var yearSuffix = (ys && ye) ? '_' + ys + '_' + ye : '';
@@ -60,7 +92,6 @@ function staticFetch(url) {
     else if (path === 'eps_returns_trend') filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + yearSuffix + '.json';
     else filePath += path + '.json';
 
-    // Comparison: always fetch all-time data, apply year range via Plotly layout
     if (_sfCache[filePath]) {
         if (isComparison && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _applyYearRange(d, ys, ye); });
         return Promise.resolve(_sfCache[filePath].clone());
@@ -70,8 +101,7 @@ function staticFetch(url) {
         if (isComparison && ys && ye) return r.json().then(function(d) { return _applyYearRange(d, ys, ye); });
         return r;
     }).catch(function() {
-        // Fallback: try all-time version if year-filtered file missing
-        var fallback = filePath.replace(/_\d{4}_\d{4}\.json$/, '.json');
+        var fallback = filePath.replace(/_[0-9]{4}_[0-9]{4}[.]json$/, '.json');
         if (fallback !== filePath) return fetch(fallback);
         return new Response('{}', {headers: {'Content-Type': 'application/json'}});
     });

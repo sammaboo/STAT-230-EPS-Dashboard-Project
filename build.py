@@ -47,6 +47,33 @@ def write_json(path, data):
         json.dump(data, f, separators=(',', ':'))
 
 
+def export_ticker_data(df, ticker_symbols):
+    """Export raw quarterly EPS data per ticker for client-side prediction engine"""
+    import pandas as pd
+    d = os.path.join(DOCS_DIR, 'api', 'ticker_data')
+    os.makedirs(d, exist_ok=True)
+    for ticker in ticker_symbols:
+        td = df[df['ticker'] == ticker].copy()
+        td = td.dropna(subset=['actual'])
+        td['fpedats'] = pd.to_datetime(td['fpedats'])
+        td['statpers'] = pd.to_datetime(td['statpers'])
+        if 'fpi' in td.columns:
+            td = td[td['fpi'].isin(['6', '7', '8', '9', 6, 7, 8, 9])]
+        td = td[td['statpers'] <= td['fpedats']]
+        td = td.drop_duplicates(subset=['ticker', 'fpedats', 'statpers'])
+        eps = td.sort_values('statpers').groupby('fpedats').agg({
+            'actual': 'first', 'meanest': 'last'
+        }).reset_index().sort_values('fpedats')
+        quarters = []
+        for _, row in eps.iterrows():
+            quarters.append({
+                'd': row['fpedats'].strftime('%Y-%m-%d'),
+                'a': round(float(row['actual']), 4),
+                'e': round(float(row['meanest']), 4) if pd.notna(row['meanest']) else None
+            })
+        write_json(os.path.join(d, f'{ticker}.json'), {'quarters': quarters})
+
+
 def generate_api_files(df, ticker_symbols):
     """Pre-generate all API JSON responses as static files"""
     api_dir = os.path.join(DOCS_DIR, 'api')
@@ -153,11 +180,14 @@ def generate_api_files(df, ticker_symbols):
             write_json(os.path.join(d, f'{t}_{ys}_{ye}.json'), {'chart': chart})
 
     # Note: comparison year filtering is handled client-side via Plotly xaxis range
-    # Note: prediction training window slider uses all-time data (too many date combos)
+
+    # --- Raw ticker data for client-side prediction engine ---
+    print(f"  ticker_data ({total} tickers)...")
+    export_ticker_data(df, ticker_symbols)
 
 
-STATIC_FETCH_SCRIPT = """<script>
-// Static site adapter - translates Flask API URLs to pre-generated JSON file paths
+STATIC_FETCH_SCRIPT = """<script src="static/prediction_engine.js"></script>
+<script>
 var _sfCache = {};
 function _applyYearRange(data, ys, ye) {
     if (data.chart) {
@@ -169,11 +199,43 @@ function _applyYearRange(data, ys, ye) {
     }
     return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
 }
+var _clientMethods = {linear:1, exponential:1, moving_avg:1, analyst:1};
 function staticFetch(url) {
     var parts = url.split('?');
     var path = parts[0].replace('/api/chart/', '').replace('/api/', '');
     var params = new URLSearchParams(parts[1] || '');
+    var sd = params.get('start_date'), ed = params.get('end_date');
+    var _h = {'Content-Type': 'application/json'};
 
+    // Client-side prediction: when training window slider sets a date range
+    if (sd && ed && window._predEngine) {
+        var _tk = params.get('ticker') || 'JNJ';
+        var _mt = params.get('method') || 'linear';
+        if (path === 'prediction' && _clientMethods[_mt]) {
+            return window._predEngine.load(_tk).then(function(d) {
+                var p = window._predEngine.compute(d.quarters, _mt, 4, sd, ed);
+                if (!p) return new Response('{"chart":null}', {headers: _h});
+                var c = window._predEngine.buildPredChart(d.quarters, p, _tk, _mt, true);
+                return new Response(JSON.stringify({chart: JSON.stringify(c)}), {headers: _h});
+            });
+        }
+        if (path === 'surprise_analysis') {
+            return window._predEngine.load(_tk).then(function(d) {
+                var filt = d.quarters.filter(function(q) { return q.d >= sd && q.d <= ed; });
+                if (filt.length < 2) return new Response('{"chart":null}', {headers: _h});
+                var c = window._predEngine.buildSurpChart(d.quarters, filt, _tk, true);
+                return new Response(JSON.stringify({chart: JSON.stringify(c)}), {headers: _h});
+            });
+        }
+        if (path === 'prediction_data' && _clientMethods[_mt]) {
+            return window._predEngine.load(_tk).then(function(d) {
+                var p = window._predEngine.compute(d.quarters, _mt, 4, sd, ed);
+                return new Response(JSON.stringify(p || {}), {headers: _h});
+            });
+        }
+    }
+
+    // Standard file path resolution
     var ys = params.get('year_start');
     var ye = params.get('year_end');
     var yearSuffix = (ys && ye) ? '_' + ys + '_' + ye : '';
@@ -192,7 +254,6 @@ function staticFetch(url) {
     else if (path === 'eps_returns_trend') filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + yearSuffix + '.json';
     else filePath += path + '.json';
 
-    // Comparison: always fetch all-time data, apply year range via Plotly layout
     if (_sfCache[filePath]) {
         if (isComparison && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _applyYearRange(d, ys, ye); });
         return Promise.resolve(_sfCache[filePath].clone());
@@ -202,7 +263,6 @@ function staticFetch(url) {
         if (isComparison && ys && ye) return r.json().then(function(d) { return _applyYearRange(d, ys, ye); });
         return r;
     }).catch(function() {
-        // Fallback: try all-time version if year-filtered file missing
         var fallback = filePath.replace(/_[0-9]{4}_[0-9]{4}[.]json$/, '.json');
         if (fallback !== filePath) return fetch(fallback);
         return new Response('{}', {headers: {'Content-Type': 'application/json'}});
