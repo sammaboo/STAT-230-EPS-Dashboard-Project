@@ -125,36 +125,88 @@ def generate_api_files(df, ticker_symbols):
         if count % 200 == 0:
             print(f"    {count}/{pairs}...")
 
+    # --- Year-filtered charts (for Start Year / End Year dropdowns) ---
+    min_year, max_year = get_year_range(df)
+    year_pairs = [(ys, ye) for ys in range(min_year, max_year + 1)
+                  for ye in range(ys, max_year + 1)]
+    n_yp = len(year_pairs)
+
+    print(f"  predictability + year filters ({total + 1} x {n_yp} year pairs)...")
+    d = os.path.join(api_dir, 'predictability')
+    for t in ticker_symbols + [None]:
+        key = t or 'ALL'
+        for ys, ye in year_pairs:
+            chart = create_eps_predictability_chart(df, t, ys, ye)
+            write_json(os.path.join(d, f'{key}_{ys}_{ye}.json'), {'chart': chart})
+
+    print(f"  eps_surprise_returns + year filters ({n_yp} year pairs)...")
+    d = os.path.join(api_dir, 'eps_surprise_returns')
+    for ys, ye in year_pairs:
+        chart = create_eps_surprise_returns_chart(df, ys, ye)
+        write_json(os.path.join(d, f'{ys}_{ye}.json'), {'chart': chart})
+
+    print(f"  eps_returns_trend + year filters ({total} x {n_yp} year pairs)...")
+    d = os.path.join(api_dir, 'eps_returns_trend')
+    for t in ticker_symbols:
+        for ys, ye in year_pairs:
+            chart = create_eps_vs_returns_trend_chart(df, t, ys, ye)
+            write_json(os.path.join(d, f'{t}_{ys}_{ye}.json'), {'chart': chart})
+
+    # Note: comparison year filtering is handled client-side via Plotly xaxis range
+    # Note: prediction training window slider uses all-time data (too many date combos)
+
 
 STATIC_FETCH_SCRIPT = """<script>
 // Static site adapter - translates Flask API URLs to pre-generated JSON file paths
 var _sfCache = {};
+function _applyYearRange(data, ys, ye) {
+    if (data.chart) {
+        var c = JSON.parse(data.chart);
+        var xr = [ys + '-01-01', ye + '-12-31'];
+        if (c.layout.xaxis) c.layout.xaxis.range = xr;
+        if (c.layout.xaxis2) c.layout.xaxis2.range = xr;
+        data.chart = JSON.stringify(c);
+    }
+    return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
+}
 function staticFetch(url) {
-    // Strip year params since static site uses all-time data only
-    var cleanUrl = url.replace(/[&?]year_start=\\d+/g, '').replace(/[&?]year_end=\\d+/g, '');
-    cleanUrl = cleanUrl.replace(/[&?]timeframe=[^&]*/g, '').replace(/[&?]start_date=[^&]*/g, '').replace(/[&?]end_date=[^&]*/g, '');
-    // Clean up dangling ? or &
-    cleanUrl = cleanUrl.replace(/\\?&/, '?').replace(/\\?$/, '');
-
-    var parts = cleanUrl.split('?');
+    var parts = url.split('?');
     var path = parts[0].replace('/api/chart/', '').replace('/api/', '');
     var params = new URLSearchParams(parts[1] || '');
+
+    var ys = params.get('year_start');
+    var ye = params.get('year_end');
+    var yearSuffix = (ys && ye) ? '_' + ys + '_' + ye : '';
+    var isComparison = false;
     var filePath = 'api/';
 
     if (path === 'eps_history') filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'revision_trail') filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json';
     else if (path === 'dispersion') filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json';
-    else if (path === 'comparison') filePath += 'comparison/' + (params.get('ticker1') || 'JNJ') + '_' + (params.get('ticker2') || 'MSFT') + '.json';
-    else if (path === 'predictability') { var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + '.json'; }
+    else if (path === 'comparison') { isComparison = true; filePath += 'comparison/' + (params.get('ticker1') || 'JNJ') + '_' + (params.get('ticker2') || 'MSFT') + '.json'; }
+    else if (path === 'predictability') { var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + yearSuffix + '.json'; }
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') filePath += 'eps_surprise_returns/all.json';
-    else if (path === 'eps_returns_trend') filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json';
+    else if (path === 'eps_surprise_returns') filePath += 'eps_surprise_returns/' + (ys && ye ? ys + '_' + ye : 'all') + '.json';
+    else if (path === 'eps_returns_trend') filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + yearSuffix + '.json';
     else filePath += path + '.json';
 
-    if (_sfCache[filePath]) return Promise.resolve(_sfCache[filePath].clone());
-    return fetch(filePath).then(function(r) { _sfCache[filePath] = r.clone(); return r; });
+    // Comparison: always fetch all-time data, apply year range via Plotly layout
+    if (_sfCache[filePath]) {
+        if (isComparison && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _applyYearRange(d, ys, ye); });
+        return Promise.resolve(_sfCache[filePath].clone());
+    }
+    return fetch(filePath).then(function(r) {
+        _sfCache[filePath] = r.clone();
+        if (isComparison && ys && ye) return r.json().then(function(d) { return _applyYearRange(d, ys, ye); });
+        return r;
+    }).catch(function() {
+        // Fallback: try all-time version if year-filtered file missing
+        var fallback = filePath.replace(/_[0-9]{4}_[0-9]{4}[.]json$/, '.json');
+        if (fallback !== filePath) return fetch(fallback);
+        return new Response('{}', {headers: {'Content-Type': 'application/json'}});
+    });
 }
 </script>"""
 
