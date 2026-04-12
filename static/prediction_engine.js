@@ -304,17 +304,35 @@
         var cs = pred.historical_surprises.map(function(s) { return s >= 0 ? GREEN : RED; });
         traces.push({ x: pred.historical_dates, y: pred.historical_surprises, type: 'bar', name: 'Surprise %', marker: { color: cs }, showlegend: false, xaxis: 'x2', yaxis: 'y2' });
 
+        // Predicted surprise bars using seasonal quarterly averages
+        var qAvg = {};
+        var qCnt = {};
+        for (var si = 0; si < pred.historical_dates.length; si++) {
+            var qn = new Date(pred.historical_dates[si] + 'T00:00:00').getMonth();
+            var qk = qn < 3 ? 1 : qn < 6 ? 2 : qn < 9 ? 3 : 4;
+            if (!qAvg[qk]) { qAvg[qk] = 0; qCnt[qk] = 0; }
+            qAvg[qk] += pred.historical_surprises[si];
+            qCnt[qk]++;
+        }
+        for (var qk2 in qAvg) qAvg[qk2] /= qCnt[qk2];
+        var predSurp = pred.future_dates.map(function(fd) {
+            var fq = new Date(fd + 'T00:00:00').getMonth();
+            var fqn = fq < 3 ? 1 : fq < 6 ? 2 : fq < 9 ? 3 : 4;
+            return qAvg[fqn] !== undefined ? qAvg[fqn] : pred.avg_surprise_pct;
+        });
+        traces.push({ x: pred.future_dates, y: predSurp, type: 'bar', name: 'Predicted Surprise', marker: { color: predSurp.map(function() { return 'rgba(240,136,62,0.7)'; }), line: { color: ORANGE, width: 1.5 } }, opacity: 0.6, showlegend: true, xaxis: 'x2', yaxis: 'y2' });
+
         var mt = method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' ');
         var layout = {
             paper_bgcolor: BG, plot_bgcolor: BG, font: { color: TEXT, family: 'Inter, sans-serif' },
             height: 550, showlegend: true, margin: { t: 40, b: 40, l: 60, r: 20 },
             annotations: [
                 { text: ticker + ' EPS Forecast (' + mt + ' Method)', x: 0.5, y: 1.02, xref: 'paper', yref: 'paper', showarrow: false, font: { color: TEXT, size: 13 } },
-                { text: ticker + ' Historical Surprise Pattern', x: 0.5, y: 0.37, xref: 'paper', yref: 'paper', showarrow: false, font: { color: TEXT, size: 12 } }
+                { text: ticker + ' Surprise Pattern (Historical + Predicted)', x: 0.5, y: 0.37, xref: 'paper', yref: 'paper', showarrow: false, font: { color: TEXT, size: 12 } }
             ],
             xaxis: ax({ domain: [0, 1], anchor: 'y' }),
             yaxis: ax({ domain: [0.45, 1], anchor: 'x', title: { text: 'EPS ($)', font: { color: MUTED } } }),
-            xaxis2: ax({ domain: [0, 1], anchor: 'y2' }),
+            xaxis2: ax({ domain: [0, 1], anchor: 'y2', matches: 'x' }),
             yaxis2: ax({ domain: [0, 0.33], anchor: 'x2', title: { text: 'Surprise (%)', font: { color: MUTED } } }),
             shapes: [
                 { type: 'line', x0: 0, x1: 1, xref: 'paper', y0: pred.avg_surprise_pct, y1: pred.avg_surprise_pct, yref: 'y2', line: { color: MUTED, dash: 'dash', width: 1 } },
