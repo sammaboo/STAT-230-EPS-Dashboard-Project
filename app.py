@@ -1030,7 +1030,7 @@ def create_revenue_time_chart(df, ticker1='JNJ', ticker2='MSFT', year_start=None
     return fig.to_json()
 
 def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=None, year_end=None):
-    """Create estimate convergence chart showing how forecasts approach actuals over time for one company"""
+    """Create estimate convergence chart showing how forecasts converge toward actuals over time"""
     import numpy as np
     if df is None:
         return None
@@ -1061,95 +1061,99 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
         if len(names) > 0:
             company_name = f"{ticker} - {names.iloc[0]}"
     
-    # Get unique fiscal quarters with actuals
-    quarters = ticker_data.dropna(subset=['actual']).groupby('fpedats').agg({
-        'actual': 'first'
-    }).reset_index().sort_values('fpedats')
+    # Compute months before earnings and forecast error for every observation
+    ticker_data = ticker_data.copy()
+    ticker_data['months_before'] = ((ticker_data['fpedats'] - ticker_data['statpers']).dt.days / 30.44).round(1)
+    ticker_data = ticker_data[ticker_data['months_before'] >= 0]
+    ticker_data['error_pct'] = ((ticker_data['meanest'] - ticker_data['actual']) / ticker_data['actual'].abs()) * 100
     
-    # Take up to last 12 quarters for readability
-    quarters = quarters.tail(12)
+    # Determine beat/miss per quarter
+    last_est = ticker_data.sort_values('statpers').groupby('fpedats').last().reset_index()
+    beat_map = dict(zip(last_est['fpedats'], last_est['meanest'] <= last_est['actual']))
+    ticker_data['beat'] = ticker_data['fpedats'].map(beat_map)
     
-    # Color palette for quarters
-    q_colors = [
-        '#58a6ff', '#f0883e', '#3fb950', '#bc8cff', '#f85149', '#e3b341',
-        '#79c0ff', '#d2a8ff', '#56d364', '#ffa657', '#ff7b72', '#a5d6ff'
-    ]
+    # Quarter labels for hover
+    ticker_data['q_label'] = ticker_data['fpedats'].apply(
+        lambda d: d.strftime('%Y-Q') + str((d.month - 1) // 3 + 1)
+    )
+    
+    n_quarters = ticker_data['fpedats'].nunique()
+    n_obs = len(ticker_data)
     
     fig = go.Figure()
     
-    # For each fiscal quarter, draw convergence line (estimates over time -> actual)
-    error_pcts = []
-    for idx, (_, qrow) in enumerate(quarters.iterrows()):
-        fpe = qrow['fpedats']
-        actual = qrow['actual']
-        color = q_colors[idx % len(q_colors)]
-        
-        # Get all estimates for this fiscal period, sorted by date
-        q_data = ticker_data[ticker_data['fpedats'] == fpe].sort_values('statpers')
-        if len(q_data) == 0:
-            continue
-        
-        q_label = pd.Timestamp(fpe).strftime('%Y-Q') + str((pd.Timestamp(fpe).month - 1) // 3 + 1)
-        
-        # Compute months before earnings for x-axis
-        q_data = q_data.copy()
-        q_data['months_before'] = ((q_data['fpedats'] - q_data['statpers']).dt.days / 30.44).round(1)
-        q_data = q_data[q_data['months_before'] >= 0].sort_values('months_before', ascending=False)
-        
-        if len(q_data) == 0:
-            continue
-        
-        # Track final estimate error
-        final_est = q_data.iloc[-1]['meanest']
-        if actual != 0:
-            error_pcts.append(abs(final_est - actual) / abs(actual) * 100)
-        
-        beat = actual >= final_est
-        
-        # Draw estimate convergence line
+    # Beat dots (green, semi-transparent)
+    beat_data = ticker_data[ticker_data['beat'] == True]
+    if len(beat_data) > 0:
         fig.add_trace(go.Scatter(
-            x=q_data['months_before'],
-            y=q_data['meanest'],
-            name=q_label,
-            mode='lines+markers',
-            line=dict(color=color, width=2),
-            marker=dict(size=4, color=color),
-            hovertemplate=q_label + '<br>%{x:.0f} mo before<br>Estimate: $%{y:.2f}<extra></extra>',
-            legendgroup=q_label
-        ))
-        
-        # Draw actual as a star at month 0
-        fig.add_trace(go.Scatter(
-            x=[0],
-            y=[actual],
+            x=beat_data['months_before'],
+            y=beat_data['error_pct'],
             mode='markers',
-            marker=dict(
-                size=14,
-                symbol='star',
-                color='#3fb950' if beat else '#f85149',
-                line=dict(color='white', width=1)
-            ),
-            name=q_label + (' Beat' if beat else ' Miss'),
-            hovertemplate=q_label + '<br>Actual: $%{y:.2f}' + (' (Beat)' if beat else ' (Miss)') + '<extra></extra>',
-            showlegend=False,
-            legendgroup=q_label
+            marker=dict(size=7, color='#3fb950', opacity=0.5, line=dict(width=0)),
+            name='Beat Quarter',
+            hovertemplate='%{customdata[0]}<br>%{x:.0f} mo before<br>Error: %{y:+.1f}%<br>Est: $%{customdata[1]:.2f} | Act: $%{customdata[2]:.2f}<extra></extra>',
+            customdata=list(zip(beat_data['q_label'], beat_data['meanest'], beat_data['actual']))
         ))
     
-    # Add a vertical line at x=0 for earnings date
-    fig.add_vline(x=0, line_dash='dash', line_color='#8b949e', line_width=1,
-                  annotation_text='Earnings Date', annotation_position='top',
-                  annotation=dict(font=dict(color='#8b949e', size=10)))
+    # Miss dots (red, semi-transparent)
+    miss_data = ticker_data[ticker_data['beat'] == False]
+    if len(miss_data) > 0:
+        fig.add_trace(go.Scatter(
+            x=miss_data['months_before'],
+            y=miss_data['error_pct'],
+            mode='markers',
+            marker=dict(size=7, color='#f85149', opacity=0.5, line=dict(width=0)),
+            name='Miss Quarter',
+            hovertemplate='%{customdata[0]}<br>%{x:.0f} mo before<br>Error: %{y:+.1f}%<br>Est: $%{customdata[1]:.2f} | Act: $%{customdata[2]:.2f}<extra></extra>',
+            customdata=list(zip(miss_data['q_label'], miss_data['meanest'], miss_data['actual']))
+        ))
     
-    # Summary stats
-    avg_error = np.mean(error_pcts) if error_pcts else 0
+    # Add average error line (binned by month)
+    ticker_data['month_bin'] = ticker_data['months_before'].round(0).astype(int)
+    avg_by_month = ticker_data.groupby('month_bin').agg(
+        mean_error=('error_pct', 'mean'),
+        p25=('error_pct', lambda x: np.percentile(x, 25)),
+        p75=('error_pct', lambda x: np.percentile(x, 75)),
+        count=('error_pct', 'size')
+    ).reset_index().sort_values('month_bin', ascending=False)
+    avg_by_month = avg_by_month[avg_by_month['count'] >= 2]
+    
+    # P25-P75 shaded band
+    if len(avg_by_month) > 1:
+        fig.add_trace(go.Scatter(
+            x=list(avg_by_month['month_bin']) + list(avg_by_month['month_bin'][::-1]),
+            y=list(avg_by_month['p75']) + list(avg_by_month['p25'][::-1]),
+            fill='toself',
+            fillcolor='rgba(88, 166, 255, 0.12)',
+            line=dict(width=0),
+            name='P25–P75 Band',
+            hoverinfo='skip',
+            showlegend=True
+        ))
+    
+    # Mean error trend line
+    if len(avg_by_month) > 1:
+        fig.add_trace(go.Scatter(
+            x=avg_by_month['month_bin'],
+            y=avg_by_month['mean_error'],
+            mode='lines',
+            line=dict(color='#58a6ff', width=3),
+            name='Avg Error',
+            hovertemplate='%{x} mo before<br>Avg Error: %{y:+.1f}%<extra></extra>'
+        ))
+    
+    # Zero line (perfect accuracy)
+    fig.add_hline(y=0, line_dash='dash', line_color='#e3b341', line_width=1.5,
+                  annotation_text='Actual EPS', annotation_position='bottom right',
+                  annotation=dict(font=dict(color='#e3b341', size=10)))
     
     fig.update_layout(**DARK_LAYOUT)
     fig.update_layout(
         title=f'Estimate Convergence: {company_name}<br>'
-              f'<sub style="color:#8b949e">How analyst consensus narrows toward actual EPS as earnings date approaches '
-              f'| Avg final error: {avg_error:.1f}%</sub>',
+              f'<sub style="color:#8b949e">Each dot = one monthly consensus estimate for one quarter '
+              f'| {n_quarters} quarters, {n_obs} observations</sub>',
         xaxis_title='Months Before Earnings',
-        yaxis_title='EPS ($)',
+        yaxis_title='Forecast Error %',
         height=500,
         legend=dict(
             orientation='h',
