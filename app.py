@@ -544,6 +544,9 @@ def create_pead_chart(df):
     # Calculate surprise
     eps_agg['surprise_pct'] = ((eps_agg['actual'] - eps_agg['meanest']) / eps_agg['meanest'].abs()) * 100
     
+    # Filter out infinite surprise values (when meanest == 0)
+    eps_agg = eps_agg[eps_agg['surprise_pct'].apply(lambda x: pd.notna(x) and abs(x) != float('inf'))]
+    
     # Next-quarter return (post-announcement drift)
     eps_agg['next_q_ret'] = eps_agg.groupby('ticker')['quarterly_ret'].shift(-1)
     eps_agg = eps_agg.dropna(subset=['surprise_pct', 'next_q_ret'])
@@ -568,9 +571,9 @@ def create_pead_chart(df):
     bar_colors = ['#f85149', '#f0883e', '#8b949e', '#58a6ff', '#3fb950']
     fig.add_trace(go.Bar(
         x=bin_stats['surprise_bin'],
-        y=bin_stats['mean_drift'] * 100,
+        y=bin_stats['mean_drift'],
         marker_color=bar_colors[:len(bin_stats)],
-        text=[f'{v*100:.4f}%<br>n={n}' for v, n in zip(bin_stats['mean_drift'], bin_stats['count'])],
+        text=[f'{v:.4f}%<br>n={n}' for v, n in zip(bin_stats['mean_drift'], bin_stats['count'])],
         textposition='outside',
         textfont=dict(color='#c9d1d9', size=10),
         showlegend=False,
@@ -580,7 +583,7 @@ def create_pead_chart(df):
     # Right: Scatter of surprise vs next-quarter return
     fig.add_trace(go.Scatter(
         x=eps_agg['surprise_pct'],
-        y=eps_agg['next_q_ret'] * 100,
+        y=eps_agg['next_q_ret'],
         mode='markers',
         marker=dict(
             size=6,
@@ -596,7 +599,7 @@ def create_pead_chart(df):
     from scipy import stats as sp_stats
     mask = eps_agg['surprise_pct'].notna() & eps_agg['next_q_ret'].notna()
     if mask.sum() > 2:
-        slope, intercept, r, p, se = sp_stats.linregress(eps_agg.loc[mask, 'surprise_pct'], eps_agg.loc[mask, 'next_q_ret'] * 100)
+        slope, intercept, r, p, se = sp_stats.linregress(eps_agg.loc[mask, 'surprise_pct'], eps_agg.loc[mask, 'next_q_ret'])
         x_line = [eps_agg['surprise_pct'].min(), eps_agg['surprise_pct'].max()]
         y_line = [intercept + slope * x for x in x_line]
         fig.add_trace(go.Scatter(
