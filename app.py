@@ -224,8 +224,8 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6):
             avg_path_data.setdefault(mb, []).append(row['meanest'])
         
         # Gradient opacity: most recent quarters are more visible
-        base_opacity = 0.25 + 0.45 * (i / max(n_display - 1, 1))
-        line_width = 1.0 + 0.8 * (i / max(n_display - 1, 1))
+        base_opacity = 0.35 + 0.45 * (i / max(n_display - 1, 1))
+        line_width = 1.5 + 1.0 * (i / max(n_display - 1, 1))
         
         # Thin background line (individual quarter)
         show_legend = False
@@ -250,15 +250,30 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6):
             hovertemplate=f'{fpe_label}<br>%{{x:.0f}} mo before<br>Consensus: $%{{y:.2f}}<br>Actual: {"${:.2f}".format(actual) if actual else "N/A"}<extra></extra>'
         ), row=1, col=1)
         
-        # Endpoint star at x=0 for the actual value
+        # Connect last estimate to the actual with a dotted connector
+        if actual is not None and len(q_data) > 0:
+            last_row = q_data.sort_values('months_before').iloc[0]
+            fig.add_trace(go.Scatter(
+                x=[last_row['months_before'], 0],
+                y=[last_row['meanest'], actual],
+                mode='lines',
+                line=dict(color=color, width=line_width * 0.8, dash='dot'),
+                opacity=base_opacity * 0.7,
+                showlegend=False, hoverinfo='skip'
+            ), row=1, col=1)
+        
+        # Endpoint marker at x=0 for the actual value
         if actual is not None:
             fig.add_trace(go.Scatter(
                 x=[0], y=[actual],
-                mode='markers',
-                marker=dict(size=9, color=color, symbol='star',
-                            line=dict(color='#0d1117', width=0.5)),
+                mode='markers+text',
+                marker=dict(size=11, color=color, symbol='star',
+                            line=dict(color='#0d1117', width=0.8)),
+                text=[f'${actual:.2f}'],
+                textposition='middle left',
+                textfont=dict(size=9, color=color),
                 showlegend=False,
-                hovertemplate=f'{fpe_label}<br>★ Actual: ${actual:.2f}<extra></extra>'
+                hovertemplate=f'{fpe_label}<br>Actual: ${actual:.2f}<extra></extra>'
             ), row=1, col=1)
         
         # Small label at the start of the line (earliest estimate)
