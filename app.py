@@ -259,7 +259,7 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6, year_start=Non
             line=dict(color=color, width=line_width),
             opacity=base_opacity,
             mode='lines',
-            hovertemplate=f'{fpe_label}<br>%{{x:.0f}} mo before<br>Consensus: $%{{y:.4f}}<br>Actual: {"${:.4f}".format(actual) if actual else "N/A"}<extra></extra>'
+            hovertemplate=f'{fpe_label}<br>%{{x:.0f}} mo before<br>Consensus: $%{{y:.2f}}<br>Actual: {"${:.2f}".format(actual) if actual else "N/A"}<extra></extra>'
         ), row=1, col=1)
         
         # Connect last estimate to the actual with a dotted connector
@@ -281,11 +281,11 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6, year_start=Non
                 mode='markers+text',
                 marker=dict(size=11, color=color, symbol='star',
                             line=dict(color='#0d1117', width=0.8)),
-                text=[f'${actual:.4f}'],
+                text=[f'${actual:.2f}'],
                 textposition='middle left',
                 textfont=dict(size=9, color=color),
                 showlegend=False,
-                hovertemplate=f'{fpe_label}<br>Actual: ${actual:.4f}<extra></extra>'
+                hovertemplate=f'{fpe_label}<br>Actual: ${actual:.2f}<extra></extra>'
             ), row=1, col=1)
         
         # Small label at the start of the line (earliest estimate)
@@ -327,7 +327,7 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6, year_start=Non
             name='Avg Consensus Path',
             line=dict(color=AVG_COLOR, width=3),
             mode='lines+markers', marker=dict(size=5, color=AVG_COLOR),
-            hovertemplate='Avg across %{customdata} quarters<br>%{x} mo before<br>Consensus: $%{y:.4f}<extra></extra>',
+            hovertemplate='Avg across %{customdata} quarters<br>%{x} mo before<br>Consensus: $%{y:.2f}<extra></extra>',
             customdata=[len(avg_path_data[m]) for m in avg_months]
         ), row=1, col=1)
     
@@ -388,7 +388,7 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6, year_start=Non
             name='Median |Error|',
             line=dict(color='#58a6ff', width=3),
             mode='lines+markers', marker=dict(size=5, symbol='circle'),
-            hovertemplate='%{x} mo before<br>Median error: %{y:.4f}%<br>n=%{customdata}<extra></extra>',
+            hovertemplate='%{x} mo before<br>Median error: %{y:.2f}%<br>n=%{customdata}<extra></extra>',
             customdata=counts
         ), row=2, col=1)
         
@@ -423,8 +423,8 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6, year_start=Non
         for _, row in estimates_sorted.iterrows():
             convergence_errors.append((row['months_before'], abs((row['meanest'] - actual) / abs(actual) * 100)))
     
-    metrics['walk_down_pct'] = round(np.mean(walk_changes), 4) if walk_changes else None
-    metrics['median_final_accuracy'] = round(np.median(final_errors), 4) if final_errors else None
+    metrics['walk_down_pct'] = round(np.mean(walk_changes), 2) if walk_changes else None
+    metrics['median_final_accuracy'] = round(np.median(final_errors), 2) if final_errors else None
     
     # Beat rate & surprise stats
     beat_count = 0
@@ -444,8 +444,8 @@ def create_revision_trail_chart(df, ticker='JNJ', num_quarters=6, year_start=Non
             miss_count += 1
     
     total_qtr = beat_count + miss_count
-    metrics['beat_rate'] = round(beat_count / total_qtr * 100, 4) if total_qtr > 0 else None
-    metrics['avg_surprise'] = round(np.mean(surprises), 4) if surprises else None
+    metrics['beat_rate'] = round(beat_count / total_qtr * 100, 2) if total_qtr > 0 else None
+    metrics['avg_surprise'] = round(np.mean(surprises), 2) if surprises else None
     metrics['quarters_analyzed'] = total_qtr
     
     # Convergence month
@@ -581,11 +581,11 @@ def create_pead_chart(df):
         x=bin_stats['surprise_bin'],
         y=bin_stats['mean_drift'],
         marker_color=bar_colors[:len(bin_stats)],
-        text=[f'{v:.4f}%<br>n={n}' for v, n in zip(bin_stats['mean_drift'], bin_stats['count'])],
+        text=[f'{v:.2f}%<br>n={n}' for v, n in zip(bin_stats['mean_drift'], bin_stats['count'])],
         textposition='outside',
         textfont=dict(color='#c9d1d9', size=10),
         showlegend=False,
-        hovertemplate='%{x}<br>Avg Next-Q Return: %{y:.4f}%<extra></extra>'
+        hovertemplate='%{x}<br>Avg Next-Q Return: %{y:.2f}%<extra></extra>'
     ), row=1, col=1)
     
     # Right: Scatter of surprise vs next-quarter return
@@ -600,7 +600,7 @@ def create_pead_chart(df):
             opacity=0.6
         ),
         showlegend=False,
-        hovertemplate='Surprise: %{x:.4f}%<br>Next-Q Return: %{y:.4f}%<extra></extra>'
+        hovertemplate='Surprise: %{x:.2f}%<br>Next-Q Return: %{y:.2f}%<extra></extra>'
     ), row=1, col=2)
     
     # Add OLS trendline
@@ -614,7 +614,7 @@ def create_pead_chart(df):
             x=x_line, y=y_line,
             mode='lines',
             line=dict(color='#f0883e', width=2, dash='dash'),
-            name=f'OLS (R²={r**2:.4f}, p={p:.4f})',
+            name=f'OLS (R²={r**2:.2f}, p={p:.2f})',
             showlegend=True
         ), row=1, col=2)
     
@@ -981,15 +981,15 @@ def create_eps_predictability_chart(df, ticker=None, year_start=None, year_end=N
     x = eps_agg['eps_lag'].values
     y = eps_agg['actual'].values
     slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x, y)
-    r_squared = round(r_value ** 2, 4)
-    mean_eps = round(float(y.mean()), 4)
-    std_eps = round(float(y.std()), 4)
+    r_squared = round(r_value ** 2, 2)
+    mean_eps = round(float(y.mean()), 2)
+    std_eps = round(float(y.std()), 2)
     n_obs = int(len(y))
     n_companies = int(eps_agg['ticker'].nunique())
     
     pred_stats = {
         'r_squared': r_squared,
-        'slope': round(slope, 4),
+        'slope': round(slope, 2),
         'mean_eps': mean_eps,
         'std_eps': std_eps,
         'n_obs': n_obs,
@@ -1106,7 +1106,7 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
             mode='markers',
             marker=dict(size=7, color='#3fb950', opacity=0.5, line=dict(width=0)),
             name='Beat Quarter',
-            hovertemplate='%{customdata[0]}<br>%{x:.0f} mo before<br>Error: %{y:+.4f}%<br>Est: $%{customdata[1]:.4f} | Act: $%{customdata[2]:.4f}<extra></extra>',
+            hovertemplate='%{customdata[0]}<br>%{x:.0f} mo before<br>Error: %{y:+.2f}%<br>Est: $%{customdata[1]:.2f} | Act: $%{customdata[2]:.2f}<extra></extra>',
             customdata=list(zip(beat_data['q_label'], beat_data['meanest'], beat_data['actual']))
         ))
     
@@ -1119,7 +1119,7 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
             mode='markers',
             marker=dict(size=7, color='#f85149', opacity=0.5, line=dict(width=0)),
             name='Miss Quarter',
-            hovertemplate='%{customdata[0]}<br>%{x:.0f} mo before<br>Error: %{y:+.4f}%<br>Est: $%{customdata[1]:.4f} | Act: $%{customdata[2]:.4f}<extra></extra>',
+            hovertemplate='%{customdata[0]}<br>%{x:.0f} mo before<br>Error: %{y:+.2f}%<br>Est: $%{customdata[1]:.2f} | Act: $%{customdata[2]:.2f}<extra></extra>',
             customdata=list(zip(miss_data['q_label'], miss_data['meanest'], miss_data['actual']))
         ))
     
@@ -1154,7 +1154,7 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
             mode='lines',
             line=dict(color='#58a6ff', width=3),
             name='Avg Error',
-            hovertemplate='%{x} mo before<br>Avg Error: %{y:+.4f}%<extra></extra>'
+            hovertemplate='%{x} mo before<br>Avg Error: %{y:+.2f}%<extra></extra>'
         ))
     
     # Zero line (perfect accuracy)
@@ -1227,7 +1227,8 @@ def create_eps_surprise_returns_chart(df, year_start=None, year_end=None):
             mode='markers',
             name=t,
             marker=dict(size=10, opacity=0.7, color=palette[i % len(palette)]),
-            hovertemplate=f'{t}<br>Surprise: %{{x:.4f}}%<br>Return: %{{y:.4f}}%<extra></extra>'
+            customdata=td[['fyear']].values,
+            hovertemplate=f'{t}<br>Surprise: %{{x:.2f}}%<br>Return: %{{y:.2f}}%<extra></extra>'
         ))
     
     # Single OLS trendline for ALL data
@@ -1240,7 +1241,7 @@ def create_eps_surprise_returns_chart(df, year_start=None, year_end=None):
             x=x_range, y=y_range,
             mode='lines',
             line=dict(color='#f0883e', width=3, dash='dash'),
-            name=f'OLS (R²={r**2:.4f}, p={p:.4f})',
+            name=f'OLS (R²={r**2:.2f}, p={p:.2f})',
             showlegend=True
         ))
     
@@ -1618,7 +1619,7 @@ def predict_eps(df, ticker, method='linear', periods=4, timeframe='all', start_d
         avg_error = np.mean(backtest_errors)
         # Convert error to confidence: 0% error -> 1.0, 100% error -> 0.0
         confidence = max(0.0, min(1.0, 1.0 - avg_error))
-        backtest_mape = round(avg_error * 100, 4)
+        backtest_mape = round(avg_error * 100, 2)
     else:
         # Fallback if not enough data for backtest
         confidence = r_value ** 2 if method == 'linear' else 0.5
@@ -1634,10 +1635,10 @@ def predict_eps(df, ticker, method='linear', periods=4, timeframe='all', start_d
         'historical_estimates': eps_history['meanest'].tolist(),
         'historical_surprises': eps_history['surprise_pct'].tolist(),
         'future_dates': [d.strftime('%Y-%m-%d') for d in future_dates],
-        'predicted_eps': [round(e, 4) for e in predicted_eps],
-        'avg_surprise_pct': round(avg_surprise_pct, 4),
-        'std_surprise_pct': round(std_surprise_pct, 4),
-        'confidence': round(confidence, 4),
+        'predicted_eps': [round(e, 2) for e in predicted_eps],
+        'avg_surprise_pct': round(avg_surprise_pct, 2),
+        'std_surprise_pct': round(std_surprise_pct, 2),
+        'confidence': round(confidence, 2),
         'backtest_mape': backtest_mape,
         'method': method
     }, eps_history
@@ -1811,7 +1812,7 @@ def create_prediction_chart(df, ticker='JNJ', method='linear', timeframe='all', 
     # Add average surprise line
     avg_surprise = prediction_data['avg_surprise_pct']
     fig.add_hline(y=avg_surprise, line_dash="dash", line_color="#8b949e", 
-                  annotation_text=f"Avg: {avg_surprise:.4f}%", row=2, col=1)
+                  annotation_text=f"Avg: {avg_surprise:.2f}%", row=2, col=1)
     fig.add_hline(y=0, line_color="#30363d", row=2, col=1)
     
     fig.update_layout(

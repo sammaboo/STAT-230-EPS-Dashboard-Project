@@ -158,6 +158,25 @@ def generate_api_files(df, ticker_symbols):
 STATIC_FETCH_SCRIPT = """<script src="static/prediction_engine.js?v=""" + str(int(time.time())) + """"></script>
 <script>
 var _sfCache = {};
+var _h = {'Content-Type': 'application/json'};
+function _resp(data) { return new Response(JSON.stringify(data), {headers: _h}); }
+function _decodeF8(arr) {
+    if (Array.isArray(arr)) return arr;
+    if (arr && arr.bdata) { var b = atob(arr.bdata), ab = new ArrayBuffer(b.length), v = new Uint8Array(ab); for (var i=0;i<b.length;i++) v[i]=b.charCodeAt(i); return Array.from(new Float64Array(ab)); }
+    return arr || [];
+}
+function _decodeAny(arr) {
+    if (Array.isArray(arr)) return arr;
+    if (arr && arr.bdata) {
+        var b = atob(arr.bdata), ab = new ArrayBuffer(b.length), v = new Uint8Array(ab);
+        for (var i=0;i<b.length;i++) v[i]=b.charCodeAt(i);
+        if (arr.dtype === 'f8') return Array.from(new Float64Array(ab));
+        if (arr.dtype === 'i4') return Array.from(new Int32Array(ab));
+        if (arr.dtype === 'i2') return Array.from(new Int16Array(ab));
+        return Array.from(new Float64Array(ab));
+    }
+    return arr || [];
+}
 function _applyYearRange(data, ys, ye) {
     if (data.chart) {
         var c = JSON.parse(data.chart);
@@ -166,30 +185,95 @@ function _applyYearRange(data, ys, ye) {
         if (c.layout.xaxis2) c.layout.xaxis2.range = xr;
         data.chart = JSON.stringify(c);
     }
-    return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
+    return _resp(data);
+}
+function _filterReturnsTrend(data, ys, ye) {
+    if (!data.chart) return _resp(data);
+    var c = JSON.parse(data.chart), ysN = parseInt(ys), yeN = parseInt(ye);
+    for (var i = 0; i < c.data.length; i++) {
+        var tr = c.data[i], xs = tr.x;
+        if (!Array.isArray(xs) || xs.length === 0 || typeof xs[0] !== 'string') continue;
+        var nx = [], ny = [];
+        var ys2 = _decodeF8(tr.y);
+        for (var j = 0; j < xs.length; j++) {
+            var yr = parseInt(xs[j].substring(0, 4));
+            if (yr >= ysN && yr <= yeN) { nx.push(xs[j]); ny.push(ys2[j]); }
+        }
+        tr.x = nx; tr.y = ny;
+    }
+    data.chart = JSON.stringify(c);
+    return _resp(data);
+}
+function _filterSurpriseReturns(data, ys, ye) {
+    if (!data.chart) return _resp(data);
+    var c = JSON.parse(data.chart), ysN = parseInt(ys), yeN = parseInt(ye);
+    var fx = [], fy = [];
+    for (var i = 0; i < c.data.length; i++) {
+        var tr = c.data[i];
+        if (tr.mode !== 'markers') continue;
+        var xs = _decodeF8(tr.x), ya = _decodeF8(tr.y);
+        var cd = tr.customdata;
+        if (cd && cd.bdata) { cd = _decodeAny(cd); cd = cd.map(function(v){return [v];}); }
+        else if (Array.isArray(cd) && cd.length > 0 && !Array.isArray(cd[0])) { cd = cd.map(function(v){return [v];}); }
+        var nx = [], ny = [], ncd = [];
+        for (var j = 0; j < xs.length; j++) {
+            var yr = (cd && cd[j]) ? (Array.isArray(cd[j]) ? cd[j][0] : cd[j]) : null;
+            if (yr !== null && yr >= ysN && yr <= yeN) { nx.push(xs[j]); ny.push(ya[j]); ncd.push(cd[j]); fx.push(xs[j]); fy.push(ya[j]); }
+        }
+        tr.x = nx; tr.y = ny; if (cd) tr.customdata = ncd;
+    }
+    if (fx.length >= 2) {
+        var n = fx.length, sx = 0, sy = 0, sxy = 0, sxx = 0;
+        for (var k = 0; k < n; k++) { sx += fx[k]; sy += fy[k]; sxy += fx[k]*fy[k]; sxx += fx[k]*fx[k]; }
+        var sl = (n*sxy - sx*sy) / (n*sxx - sx*sx), ic = (sy - sl*sx) / n;
+        var xMin = Math.min.apply(null, fx), xMax = Math.max.apply(null, fx);
+        for (var i2 = 0; i2 < c.data.length; i2++) {
+            if (c.data[i2].mode === 'lines') { c.data[i2].x = [xMin, xMax]; c.data[i2].y = [sl*xMin+ic, sl*xMax+ic]; break; }
+        }
+    }
+    data.chart = JSON.stringify(c);
+    return _resp(data);
+}
+function _filterComparison(data, ys, ye) {
+    if (!data.chart) return _resp(data);
+    var c = JSON.parse(data.chart), ysN = parseInt(ys), yeN = parseInt(ye);
+    var allX = [], allY = [];
+    for (var i = 0; i < c.data.length; i++) {
+        var tr = c.data[i];
+        if (tr.mode !== 'markers' || !tr.customdata) continue;
+        var xs = _decodeF8(tr.x), ya = _decodeF8(tr.y), cd = tr.customdata;
+        var nx = [], ny = [], ncd = [];
+        for (var j = 0; j < xs.length; j++) {
+            var ql = cd[j][0]; var yr = parseInt(ql.substring(0, 4));
+            if (yr >= ysN && yr <= yeN) { nx.push(xs[j]); ny.push(ya[j]); ncd.push(cd[j]); allX.push(xs[j]); allY.push(ya[j]); }
+        }
+        tr.x = nx; tr.y = ny; tr.customdata = ncd;
+    }
+    if (allX.length > 0) {
+        var bins = {};
+        for (var k = 0; k < allX.length; k++) { var mb = Math.round(allX[k]); if (!bins[mb]) bins[mb] = []; bins[mb].push(allY[k]); }
+        var months = Object.keys(bins).map(Number).sort(function(a,b){return b-a;});
+        var avgD = months.filter(function(m){return bins[m].length >= 2;}).map(function(m) {
+            var v = bins[m].slice().sort(function(a,b){return a-b;}), s = v.reduce(function(a,b){return a+b;},0);
+            return {m:m, mean:s/v.length, p25:v[Math.floor(v.length*0.25)], p75:v[Math.min(Math.floor(v.length*0.75),v.length-1)]};
+        });
+        for (var i2 = 0; i2 < c.data.length; i2++) {
+            if (c.data[i2].fill === 'toself' && avgD.length > 0) {
+                c.data[i2].x = avgD.map(function(d){return d.m;}).concat(avgD.slice().reverse().map(function(d){return d.m;}));
+                c.data[i2].y = avgD.map(function(d){return d.p75;}).concat(avgD.slice().reverse().map(function(d){return d.p25;}));
+            }
+            if (c.data[i2].name === 'Avg Error' && avgD.length > 0) {
+                c.data[i2].x = avgD.map(function(d){return d.m;}); c.data[i2].y = avgD.map(function(d){return d.mean;});
+            }
+        }
+    }
+    data.chart = JSON.stringify(c);
+    return _resp(data);
 }
 function _filterPredictability(data, ys, ye) {
-    if (!data.chart) return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
+    if (!data.chart) return _resp(data);
     var c = JSON.parse(data.chart);
     var ysN = parseInt(ys), yeN = parseInt(ye);
-    // Decode bdata helper
-    function decodeF8(arr) {
-        if (Array.isArray(arr)) return arr;
-        if (arr && arr.bdata) { var b = atob(arr.bdata), ab = new ArrayBuffer(b.length), v = new Uint8Array(ab); for (var i=0;i<b.length;i++) v[i]=b.charCodeAt(i); return Array.from(new Float64Array(ab)); }
-        return arr || [];
-    }
-    function decodeAny(arr) {
-        if (Array.isArray(arr)) return arr;
-        if (arr && arr.bdata) {
-            var b = atob(arr.bdata), ab = new ArrayBuffer(b.length), v = new Uint8Array(ab);
-            for (var i=0;i<b.length;i++) v[i]=b.charCodeAt(i);
-            if (arr.dtype === 'f8') return Array.from(new Float64Array(ab));
-            if (arr.dtype === 'i4') return Array.from(new Int32Array(ab));
-            if (arr.dtype === 'i2') return Array.from(new Int16Array(ab));
-            return Array.from(new Float64Array(ab));
-        }
-        return arr || [];
-    }
     // Filter scatter trace (first trace with mode=markers)
     var scatterIdx = -1, fx = [], fy = [];
     for (var i = 0; i < c.data.length; i++) {
@@ -197,9 +281,9 @@ function _filterPredictability(data, ys, ye) {
     }
     if (scatterIdx >= 0) {
         var tr = c.data[scatterIdx];
-        var xs = decodeF8(tr.x), ysArr = decodeF8(tr.y);
+        var xs = _decodeF8(tr.x), ysArr = _decodeF8(tr.y);
         var cd = tr.customdata;
-        if (cd && cd.bdata) { cd = decodeAny(cd); cd = cd.map(function(v){return [v];}); }
+        if (cd && cd.bdata) { cd = _decodeAny(cd); cd = cd.map(function(v){return [v];}); }
         else if (Array.isArray(cd) && cd.length > 0 && !Array.isArray(cd[0])) { cd = cd.map(function(v){return [v];}); }
         var nx = [], ny = [], ncd = [];
         for (var j = 0; j < xs.length; j++) {
@@ -232,7 +316,7 @@ function _filterPredictability(data, ys, ye) {
         data.stats = null;
     }
     data.chart = JSON.stringify(c);
-    return new Response(JSON.stringify(data), {headers: {'Content-Type': 'application/json'}});
+    return _resp(data);
 }
 var _clientMethods = {linear:1, exponential:1, moving_avg:1, analyst:1, holt_winters:1, sarima:1};
 function staticFetch(url) {
@@ -277,31 +361,33 @@ function staticFetch(url) {
     var ys = params.get('year_start');
     var ye = params.get('year_end');
     var yearSuffix = (ys && ye) ? '_' + ys + '_' + ye : '';
-    var isComparison = false;
     var isPredictability = false;
+    var _yearFilter = null;
     var filePath = 'api/';
 
-    if (path === 'eps_history') filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json';
-    else if (path === 'revision_trail') filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json';
-    else if (path === 'dispersion') filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json';
-    else if (path === 'comparison') { isComparison = true; filePath += 'comparison/' + (params.get('ticker') || 'JNJ') + '.json'; }
+    if (path === 'eps_history') { _yearFilter = '_applyYearRange'; filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json'; }
+    else if (path === 'revision_trail') { _yearFilter = '_applyYearRange'; filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json'; }
+    else if (path === 'dispersion') { _yearFilter = '_applyYearRange'; filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json'; }
+    else if (path === 'comparison') { _yearFilter = '_filterComparison'; filePath += 'comparison/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'predictability') { isPredictability = true; var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + '.json'; }
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') { isComparison = true; filePath += 'eps_surprise_returns/all.json'; }
-    else if (path === 'eps_returns_trend') { isComparison = true; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
+    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/all.json'; }
+    else if (path === 'eps_returns_trend') { _yearFilter = '_filterReturnsTrend'; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else filePath += path + '.json';
+
+    var _filters = {_applyYearRange: _applyYearRange, _filterComparison: _filterComparison, _filterSurpriseReturns: _filterSurpriseReturns, _filterReturnsTrend: _filterReturnsTrend};
 
     if (_sfCache[filePath]) {
         if (isPredictability && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _filterPredictability(JSON.parse(JSON.stringify(d)), ys, ye); });
-        if (isComparison && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _applyYearRange(d, ys, ye); });
+        if (_yearFilter && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _filters[_yearFilter](JSON.parse(JSON.stringify(d)), ys, ye); });
         return Promise.resolve(_sfCache[filePath].clone());
     }
     return fetch(filePath).then(function(r) {
         _sfCache[filePath] = r.clone();
         if (isPredictability && ys && ye) return r.json().then(function(d) { return _filterPredictability(JSON.parse(JSON.stringify(d)), ys, ye); });
-        if (isComparison && ys && ye) return r.json().then(function(d) { return _applyYearRange(d, ys, ye); });
+        if (_yearFilter && ys && ye) return r.json().then(function(d) { return _filters[_yearFilter](JSON.parse(JSON.stringify(d)), ys, ye); });
         return r;
     }).catch(function() {
         return new Response('{}', {headers: {'Content-Type': 'application/json'}});
