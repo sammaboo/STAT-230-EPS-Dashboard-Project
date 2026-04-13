@@ -120,11 +120,12 @@ def generate_api_files(df, ticker_symbols):
         chart = create_surprise_prediction_chart(df, t)
         write_json(os.path.join(d, f'{t}.json'), {'chart': chart})
     
-    # --- Global charts (no ticker param) ---
-    print("  eps_surprise_returns (1 file)...")
+    # --- EPS Surprise Returns (per ticker) ---
+    print(f"  eps_surprise_returns ({total} tickers)...")
     d = os.path.join(api_dir, 'eps_surprise_returns')
-    chart = create_eps_surprise_returns_chart(df)
-    write_json(os.path.join(d, 'all.json'), {'chart': chart})
+    for t in ticker_symbols:
+        chart = create_eps_surprise_returns_chart(df, t)
+        write_json(os.path.join(d, f'{t}.json'), {'chart': chart})
     
     # --- Prediction charts (ticker x method) ---
     print(f"  prediction & prediction_data ({total} tickers x {len(PREDICTION_METHODS)} methods)...")
@@ -373,7 +374,7 @@ function staticFetch(url) {
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/all.json'; }
+    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'eps_returns_trend') { _yearFilter = '_filterReturnsTrend'; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else filePath += path + '.json';
 

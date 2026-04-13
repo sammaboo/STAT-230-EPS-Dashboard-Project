@@ -570,7 +570,8 @@ function updateComparison() {
 
 // === Stock Returns section (returns-ticker, returns-year-start, returns-year-end) ===
 function updateEpsSurpriseReturns() {
-    fetch('/api/chart/eps_surprise_returns?' + getSectionYearParams('returns').substring(1))
+    var ticker = document.getElementById('returns-ticker').value;
+    fetch('/api/chart/eps_surprise_returns?ticker=' + ticker + getSectionYearParams('returns'))
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.chart) {

@@ -22,7 +22,7 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     
     
-<script src="static/prediction_engine.js?v=1776070602"></script>
+<script src="static/prediction_engine.js?v=1776098366"></script>
 <script>
 var _sfCache = {};
 var _h = {'Content-Type': 'application/json'};
@@ -240,7 +240,7 @@ function staticFetch(url) {
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/all.json'; }
+    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'eps_returns_trend') { _yearFilter = '_filterReturnsTrend'; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else filePath += path + '.json';
 
@@ -1207,7 +1207,8 @@ function updateComparison() {
 
 // === Stock Returns section (returns-ticker, returns-year-start, returns-year-end) ===
 function updateEpsSurpriseReturns() {
-    staticFetch('/api/chart/eps_surprise_returns?' + getSectionYearParams('returns').substring(1))
+    var ticker = document.getElementById('returns-ticker').value;
+    staticFetch('/api/chart/eps_surprise_returns?ticker=' + ticker + getSectionYearParams('returns'))
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.chart) {

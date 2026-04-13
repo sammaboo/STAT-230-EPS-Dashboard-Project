@@ -1184,7 +1184,7 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
     
     return fig.to_json()
 
-def create_eps_surprise_returns_chart(df, year_start=None, year_end=None):
+def create_eps_surprise_returns_chart(df, ticker=None, year_start=None, year_end=None):
     """Create scatter plot of EPS Surprise vs Quarterly Stock Returns"""
     if df is None:
         return None
@@ -1196,6 +1196,10 @@ def create_eps_surprise_returns_chart(df, year_start=None, year_end=None):
     # Use quarterly data: pair each quarter's surprise with that quarter's return
     plot_data = df.dropna(subset=['quarterly_ret', 'eps_surprise']).copy()
     plot_data['fpedats'] = pd.to_datetime(plot_data['fpedats'])
+    
+    # Filter to specific ticker if provided
+    if ticker and ticker != 'ALL':
+        plot_data = plot_data[plot_data['ticker'] == ticker]
     
     # Deduplicate to one row per ticker per fiscal quarter (fpedats)
     plot_data = plot_data.sort_values('statpers').groupby(['ticker', 'fpedats']).agg({
@@ -2104,10 +2108,11 @@ def api_comparison():
 @app.route('/api/chart/eps_surprise_returns')
 def api_eps_surprise_returns():
     """API to get EPS surprise vs returns scatter"""
+    ticker = request.args.get('ticker', None)
     year_start = request.args.get('year_start', type=int)
     year_end = request.args.get('year_end', type=int)
     df = load_data()
-    chart = create_eps_surprise_returns_chart(df, year_start, year_end)
+    chart = create_eps_surprise_returns_chart(df, ticker, year_start, year_end)
     return jsonify({'chart': chart})
 
 @app.route('/api/chart/returns_comparison')

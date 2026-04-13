@@ -63,7 +63,7 @@
     }
 </style>
 
-<script src="static/prediction_engine.js?v=1776070602"></script>
+<script src="static/prediction_engine.js?v=1776098366"></script>
 <script>
 var _sfCache = {};
 var _h = {'Content-Type': 'application/json'};
@@ -281,7 +281,7 @@ function staticFetch(url) {
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/all.json'; }
+    else if (path === 'eps_surprise_returns') { _yearFilter = '_filterSurpriseReturns'; filePath += 'eps_surprise_returns/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'eps_returns_trend') { _yearFilter = '_filterReturnsTrend'; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else filePath += path + '.json';
 
