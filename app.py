@@ -863,7 +863,7 @@ def create_estimate_accuracy_chart(df):
 def create_eps_predictability_chart(df, ticker=None, year_start=None, year_end=None):
     """Create EPS Predictability scatter - current EPS vs lagged EPS with trendline"""
     if df is None:
-        return None
+        return None, None
     
     # Get unique EPS observations per ticker and fiscal period (fpedats)
     eps_data = df.dropna(subset=['actual']).copy()
@@ -898,7 +898,7 @@ def create_eps_predictability_chart(df, ticker=None, year_start=None, year_end=N
         title = 'EPS Predictability (All Companies)'
     
     if len(eps_agg) == 0:
-        return None
+        return None, None
     
     # Single trendline for all data (don't color by ticker when showing all)
     fig = px.scatter(eps_agg, x='eps_lag', y='actual', 
@@ -917,7 +917,27 @@ def create_eps_predictability_chart(df, ticker=None, year_start=None, year_end=N
             trace.line.color = '#f0883e'
             trace.line.width = 2
     
-    return fig.to_json()
+    # Compute stats
+    from scipy import stats as scipy_stats
+    x = eps_agg['eps_lag'].values
+    y = eps_agg['actual'].values
+    slope, intercept, r_value, p_value, std_err = scipy_stats.linregress(x, y)
+    r_squared = round(r_value ** 2, 3)
+    mean_eps = round(float(y.mean()), 2)
+    std_eps = round(float(y.std()), 2)
+    n_obs = int(len(y))
+    n_companies = int(eps_agg['ticker'].nunique())
+    
+    pred_stats = {
+        'r_squared': r_squared,
+        'slope': round(slope, 3),
+        'mean_eps': mean_eps,
+        'std_eps': std_eps,
+        'n_obs': n_obs,
+        'n_companies': n_companies
+    }
+    
+    return fig.to_json(), pred_stats
 
 def create_revenue_time_chart(df, ticker1='JNJ', ticker2='MSFT', year_start=None, year_end=None):
     """Create Revenue over Time chart for two companies"""
@@ -1866,7 +1886,7 @@ def index():
         'analyst_coverage': create_analyst_coverage_chart(df),
         'estimate_accuracy': create_estimate_accuracy_chart(df),
         # Interactive charts
-        'eps_predictability': create_eps_predictability_chart(df),
+        'eps_predictability': create_eps_predictability_chart(df)[0],
         'revenue_time': create_revenue_time_chart(df, default_ticker1, default_ticker2),
         'company_comparison': create_company_comparison_chart(df, default_ticker1, default_ticker2),
         # Returns charts (requires CRSP data)
@@ -1947,8 +1967,10 @@ def api_predictability():
     year_start = request.args.get('year_start', type=int)
     year_end = request.args.get('year_end', type=int)
     df = load_data()
-    chart = create_eps_predictability_chart(df, ticker if ticker else None, year_start, year_end)
-    return jsonify({'chart': chart})
+    result = create_eps_predictability_chart(df, ticker if ticker else None, year_start, year_end)
+    if result and result[0]:
+        return jsonify({'chart': result[0], 'stats': result[1]})
+    return jsonify({'chart': None, 'stats': None})
 
 @app.route('/api/chart/comparison')
 def api_comparison():

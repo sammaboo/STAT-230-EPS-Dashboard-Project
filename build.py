@@ -102,11 +102,11 @@ def generate_api_files(df, ticker_symbols):
     print(f"  predictability ({total} tickers + ALL)...")
     d = os.path.join(api_dir, 'predictability')
     # "All Companies" (no ticker filter)
-    chart = create_eps_predictability_chart(df, None)
-    write_json(os.path.join(d, 'ALL.json'), {'chart': chart})
+    chart, stats = create_eps_predictability_chart(df, None)
+    write_json(os.path.join(d, 'ALL.json'), {'chart': chart, 'stats': stats})
     for t in ticker_symbols:
-        chart = create_eps_predictability_chart(df, t)
-        write_json(os.path.join(d, f'{t}.json'), {'chart': chart})
+        chart, stats = create_eps_predictability_chart(df, t)
+        write_json(os.path.join(d, f'{t}.json'), {'chart': chart, 'stats': stats})
     
     print(f"  eps_returns_trend ({total} tickers)...")
     d = os.path.join(api_dir, 'eps_returns_trend')

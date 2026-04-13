@@ -22,7 +22,7 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     
     
-<script src="static/prediction_engine.js?v=1776063397"></script>
+<script src="static/prediction_engine.js?v=1776063704"></script>
 <script>
 var _sfCache = {};
 function _applyYearRange(data, ys, ye) {
@@ -390,6 +390,44 @@ function staticFetch(url) {
                         </select>
                     </div>
                     <div id="predictability-chart"></div>
+                    <div class="row g-2 mt-2" id="predictability-stats">
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">R-Squared</div>
+                                <div id="pred-stat-r2" style="color: #58a6ff; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Slope</div>
+                                <div id="pred-stat-slope" style="color: #3fb950; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Mean EPS</div>
+                                <div id="pred-stat-mean" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Std Dev</div>
+                                <div id="pred-stat-std" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Observations</div>
+                                <div id="pred-stat-obs" style="color: #bc8cff; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Companies</div>
+                                <div id="pred-stat-companies" style="color: #c9d1d9; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -786,6 +824,15 @@ function updatePredictability() {
             if (data.chart) {
                 var c = JSON.parse(data.chart);
                 Plotly.react('predictability-chart', c.data, c.layout);
+            }
+            if (data.stats) {
+                var s = data.stats;
+                document.getElementById('pred-stat-r2').textContent = s.r_squared !== null ? s.r_squared : '-';
+                document.getElementById('pred-stat-slope').textContent = s.slope !== null ? s.slope : '-';
+                document.getElementById('pred-stat-mean').textContent = s.mean_eps !== null ? '$' + s.mean_eps : '-';
+                document.getElementById('pred-stat-std').textContent = s.std_eps !== null ? '$' + s.std_eps : '-';
+                document.getElementById('pred-stat-obs').textContent = s.n_obs !== null ? s.n_obs : '-';
+                document.getElementById('pred-stat-companies').textContent = s.n_companies !== null ? s.n_companies : '-';
             }
         });
 }
