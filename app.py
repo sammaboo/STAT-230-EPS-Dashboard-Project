@@ -1029,90 +1029,138 @@ def create_revenue_time_chart(df, ticker1='JNJ', ticker2='MSFT', year_start=None
     fig.update_xaxes(dtick=1, tickformat='d')  # Force integer years only
     return fig.to_json()
 
-def create_company_comparison_chart(df, ticker1='JNJ', ticker2='MSFT', year_start=None, year_end=None):
-    """Create side-by-side comparison showing estimate convergence to actuals over time"""
+def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=None, year_end=None):
+    """Create estimate convergence chart showing how forecasts approach actuals over time for one company"""
+    import numpy as np
     if df is None:
         return None
     
-    fig = make_subplots(rows=1, cols=2, subplot_titles=[ticker1, ticker2],
-                        horizontal_spacing=0.1)
+    ticker = ticker1
+    ticker_data = df[df['ticker'] == ticker].copy()
+    ticker_data = ticker_data.dropna(subset=['meanest', 'actual'])
+    ticker_data['fpedats'] = pd.to_datetime(ticker_data['fpedats'])
+    ticker_data['statpers'] = pd.to_datetime(ticker_data['statpers'])
     
-    for i, ticker in enumerate([ticker1, ticker2], 1):
-        # Get EPS data for ticker
-        ticker_data = df[df['ticker'] == ticker].copy()
-        ticker_data = ticker_data.dropna(subset=['meanest', 'actual'])
-        ticker_data['fpedats'] = pd.to_datetime(ticker_data['fpedats'])
-        ticker_data['statpers'] = pd.to_datetime(ticker_data['statpers'])
+    if 'fpi' in ticker_data.columns:
+        ticker_data = ticker_data[ticker_data['fpi'].isin(['6', '7', '8', '9', 6, 7, 8, 9])]
+    
+    ticker_data = ticker_data.drop_duplicates(subset=['ticker', 'fpedats', 'statpers'])
+    ticker_data = ticker_data.sort_values(['fpedats', 'statpers'])
+    
+    if year_start:
+        ticker_data = ticker_data[ticker_data['fpedats'].dt.year >= year_start]
+    if year_end:
+        ticker_data = ticker_data[ticker_data['fpedats'].dt.year <= year_end]
+    
+    if len(ticker_data) == 0:
+        return None
+    
+    company_name = ticker
+    if 'company_name' in df.columns:
+        names = df.loc[df['ticker'] == ticker, 'company_name'].dropna()
+        if len(names) > 0:
+            company_name = f"{ticker} - {names.iloc[0]}"
+    
+    # Get unique fiscal quarters with actuals
+    quarters = ticker_data.dropna(subset=['actual']).groupby('fpedats').agg({
+        'actual': 'first'
+    }).reset_index().sort_values('fpedats')
+    
+    # Take up to last 12 quarters for readability
+    quarters = quarters.tail(12)
+    
+    # Color palette for quarters
+    q_colors = [
+        '#58a6ff', '#f0883e', '#3fb950', '#bc8cff', '#f85149', '#e3b341',
+        '#79c0ff', '#d2a8ff', '#56d364', '#ffa657', '#ff7b72', '#a5d6ff'
+    ]
+    
+    fig = go.Figure()
+    
+    # For each fiscal quarter, draw convergence line (estimates over time -> actual)
+    error_pcts = []
+    for idx, (_, qrow) in enumerate(quarters.iterrows()):
+        fpe = qrow['fpedats']
+        actual = qrow['actual']
+        color = q_colors[idx % len(q_colors)]
         
-        # Filter to quarterly data only (fpi 6=Q1, 7=Q2, 8=Q3, 9=Q4) - exclude annual (fpi=1)
-        if 'fpi' in ticker_data.columns:
-            ticker_data = ticker_data[ticker_data['fpi'].isin(['6', '7', '8', '9', 6, 7, 8, 9])]
-        
-        # Deduplicate to unique IBES observations (remove Compustat duplicates)
-        ticker_data = ticker_data.drop_duplicates(subset=['ticker', 'fpedats', 'statpers'])
-        ticker_data = ticker_data.sort_values('statpers')
-        
-        # Apply year filter
-        if year_start:
-            ticker_data = ticker_data[ticker_data['fpedats'].dt.year >= year_start]
-        if year_end:
-            ticker_data = ticker_data[ticker_data['fpedats'].dt.year <= year_end]
-        
-        if len(ticker_data) == 0:
+        # Get all estimates for this fiscal period, sorted by date
+        q_data = ticker_data[ticker_data['fpedats'] == fpe].sort_values('statpers')
+        if len(q_data) == 0:
             continue
         
-        # Get unique fiscal periods and their actuals
-        actuals = ticker_data.groupby('fpedats').agg({'actual': 'first'}).reset_index()
-        actuals = actuals.sort_values('fpedats')
+        q_label = pd.Timestamp(fpe).strftime('%Y-Q') + str((pd.Timestamp(fpe).month - 1) // 3 + 1)
         
-        # Plot all estimate points over time (x = statpers, y = meanest)
-        # Color by fiscal period to show convergence for each quarter
+        # Compute months before earnings for x-axis
+        q_data = q_data.copy()
+        q_data['months_before'] = ((q_data['fpedats'] - q_data['statpers']).dt.days / 30.44).round(1)
+        q_data = q_data[q_data['months_before'] >= 0].sort_values('months_before', ascending=False)
+        
+        if len(q_data) == 0:
+            continue
+        
+        # Track final estimate error
+        final_est = q_data.iloc[-1]['meanest']
+        if actual != 0:
+            error_pcts.append(abs(final_est - actual) / abs(actual) * 100)
+        
+        beat = actual >= final_est
+        
+        # Draw estimate convergence line
         fig.add_trace(go.Scatter(
-            x=ticker_data['statpers'],
-            y=ticker_data['meanest'],
-            name='Estimates',
-            mode='markers',
-            marker=dict(size=6, color='#f0883e', opacity=0.6),
-            hovertemplate='%{x}<br>Estimate: $%{y:.2f}<extra></extra>',
-            showlegend=(i == 1)
-        ), row=1, col=i)
+            x=q_data['months_before'],
+            y=q_data['meanest'],
+            name=q_label,
+            mode='lines+markers',
+            line=dict(color=color, width=2),
+            marker=dict(size=4, color=color),
+            hovertemplate=q_label + '<br>%{x:.0f} mo before<br>Estimate: $%{y:.2f}<extra></extra>',
+            legendgroup=q_label
+        ))
         
-        # Plot actuals as horizontal step lines (flat lines for each quarter)
-        # Create step-like data for actuals
-        for idx, row in actuals.iterrows():
-            fpedats = row['fpedats']
-            actual = row['actual']
-            
-            # Find all estimate dates for this fiscal period
-            period_data = ticker_data[ticker_data['fpedats'] == fpedats]
-            if len(period_data) == 0:
-                continue
-            
-            min_date = period_data['statpers'].min()
-            max_date = period_data['statpers'].max()
-            
-            # Draw horizontal line for actual
-            fig.add_trace(go.Scatter(
-                x=[min_date, max_date],
-                y=[actual, actual],
-                name='Actual' if (i == 1 and idx == 0) else None,
-                mode='lines',
-                line=dict(color='#3fb950', width=3),
-                hovertemplate=f'Actual: ${actual:.2f}<extra></extra>',
-                showlegend=(i == 1 and idx == 0)
-            ), row=1, col=i)
+        # Draw actual as a star at month 0
+        fig.add_trace(go.Scatter(
+            x=[0],
+            y=[actual],
+            mode='markers',
+            marker=dict(
+                size=14,
+                symbol='star',
+                color='#3fb950' if beat else '#f85149',
+                line=dict(color='white', width=1)
+            ),
+            name=q_label + (' Beat' if beat else ' Miss'),
+            hovertemplate=q_label + '<br>Actual: $%{y:.2f}' + (' (Beat)' if beat else ' (Miss)') + '<extra></extra>',
+            showlegend=False,
+            legendgroup=q_label
+        ))
     
+    # Add a vertical line at x=0 for earnings date
+    fig.add_vline(x=0, line_dash='dash', line_color='#8b949e', line_width=1,
+                  annotation_text='Earnings Date', annotation_position='top',
+                  annotation=dict(font=dict(color='#8b949e', size=10)))
+    
+    # Summary stats
+    avg_error = np.mean(error_pcts) if error_pcts else 0
+    
+    fig.update_layout(**DARK_LAYOUT)
     fig.update_layout(
-        title='Estimate Convergence: How Forecasts Approach Actuals Over Time',
-        height=400,
-        **DARK_LAYOUT
+        title=f'Estimate Convergence: {company_name}<br>'
+              f'<sub style="color:#8b949e">How analyst consensus narrows toward actual EPS as earnings date approaches '
+              f'| Avg final error: {avg_error:.1f}%</sub>',
+        xaxis_title='Months Before Earnings',
+        yaxis_title='EPS ($)',
+        height=500,
+        legend=dict(
+            orientation='h',
+            yanchor='bottom',
+            y=1.06,
+            xanchor='center',
+            x=0.5,
+            font=dict(color='#c9d1d9', size=10)
+        ),
     )
-    fig.update_xaxes(gridcolor='#30363d', linecolor='#30363d', tickfont=dict(color='#8b949e', size=9), title_text='Estimate Date')
-    fig.update_yaxes(gridcolor='#30363d', linecolor='#30363d', tickfont=dict(color='#8b949e', size=9), title_text='EPS ($)')
-    
-    # Update subplot title colors
-    for annotation in fig['layout']['annotations']:
-        annotation['font'] = dict(color='#c9d1d9', size=12)
+    fig.update_xaxes(autorange='reversed', dtick=3)
     
     return fig.to_json()
 
@@ -1932,7 +1980,7 @@ def index():
         # Interactive charts
         'eps_predictability': create_eps_predictability_chart(df)[0],
         'revenue_time': create_revenue_time_chart(df, default_ticker1, default_ticker2),
-        'company_comparison': create_company_comparison_chart(df, default_ticker1, default_ticker2),
+        'company_comparison': create_company_comparison_chart(df, default_ticker1),
         # Returns charts (requires CRSP data)
         'eps_surprise_returns': create_eps_surprise_returns_chart(df),
         'returns_comparison': create_returns_comparison_chart(df, default_ticker1, default_ticker2),
@@ -2024,13 +2072,12 @@ def api_predictability():
 
 @app.route('/api/chart/comparison')
 def api_comparison():
-    """API to get company comparison chart"""
-    ticker1 = request.args.get('ticker1', 'JNJ')
-    ticker2 = request.args.get('ticker2', 'MSFT')
+    """API to get estimate convergence chart for a single company"""
+    ticker = request.args.get('ticker', 'JNJ')
     year_start = request.args.get('year_start', type=int)
     year_end = request.args.get('year_end', type=int)
     df = load_data()
-    chart = create_company_comparison_chart(df, ticker1, ticker2, year_start, year_end)
+    chart = create_company_comparison_chart(df, ticker, year_start=year_start, year_end=year_end)
     return jsonify({'chart': chart})
 
 @app.route('/api/chart/eps_surprise_returns')

@@ -139,19 +139,12 @@ def generate_api_files(df, ticker_symbols):
             pred_data, _ = predict_eps(df, t, method)
             write_json(os.path.join(data_dir, f'{t}_{method}.json'), pred_data)
     
-    # --- Comparison charts (upper triangle + diagonal only) ---
-    sorted_tickers = sorted(ticker_symbols)
-    pairs = sum(1 for i, t1 in enumerate(sorted_tickers) for t2 in sorted_tickers[i:])
-    print(f"  comparison ({pairs} pairs)...")
+    # --- Comparison charts (one per ticker) ---
+    print(f"  comparison ({len(ticker_symbols)} tickers)...")
     d = os.path.join(api_dir, 'comparison')
-    count = 0
-    for i, t1 in enumerate(sorted_tickers):
-        for t2 in sorted_tickers[i:]:
-            chart = create_company_comparison_chart(df, t1, t2)
-            write_json(os.path.join(d, f'{t1}_{t2}.json'), {'chart': chart})
-            count += 1
-        if count % 100 == 0:
-            print(f"    {count}/{pairs}...")
+    for t in ticker_symbols:
+        chart = create_company_comparison_chart(df, t)
+        write_json(os.path.join(d, f'{t}.json'), {'chart': chart})
 
     # --- Year-filtered charts removed ---
     # Predictability, eps_surprise_returns, and eps_returns_trend year filtering
@@ -224,7 +217,7 @@ function staticFetch(url) {
     if (path === 'eps_history') filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'revision_trail') filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json';
     else if (path === 'dispersion') filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json';
-    else if (path === 'comparison') { isComparison = true; var ct1 = params.get('ticker1') || 'JNJ', ct2 = params.get('ticker2') || 'MSFT'; var ca = [ct1,ct2].sort(); filePath += 'comparison/' + ca[0] + '_' + ca[1] + '.json'; }
+    else if (path === 'comparison') { isComparison = true; filePath += 'comparison/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'predictability') { isComparison = true; var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + '.json'; }
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';

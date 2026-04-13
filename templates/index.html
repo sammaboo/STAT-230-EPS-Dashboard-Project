@@ -304,30 +304,22 @@
     </div>
 </div>
 
-<!-- Section 4: Company Comparison -->
+<!-- Section 4: Estimate Convergence -->
 <div class="card mb-4" style="background-color: #161b22; border: 1px solid #30363d;">
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start mb-2">
-            <h5 class="mb-0" style="color: #c9d1d9;">Company Comparison</h5>
+            <h5 class="mb-0" style="color: #c9d1d9;">Estimate Convergence</h5>
             <div class="story-point-wrapper">
                 <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Compare two companies side-by-side across estimate convergence - how analyst forecasts approach actual earnings over time. Use the dropdowns to swap companies and filter by year range.</div>
+                <div class="story-point-tooltip">How do analyst forecasts narrow toward actual earnings as the earnings date approaches? Each colored line tracks the consensus estimate for one fiscal quarter over time (x-axis = months before earnings). Stars at x=0 show the actual: green = beat, red = miss. Tightly converging lines indicate predictable earnings.</div>
             </div>
         </div>
         <div class="d-flex gap-3 flex-wrap align-items-end">
             <div>
-                <label for="comp-ticker1" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company 1</label>
-                <select id="comp-ticker1" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
+                <label for="comp-ticker" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company</label>
+                <select id="comp-ticker" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
                     {% for t in tickers %}
                     <option value="{{ t.ticker }}" {% if t.ticker == default_ticker1 %}selected{% endif %}>{{ t.ticker }} - {{ t.company_name or t.ticker }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="comp-ticker2" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company 2</label>
-                <select id="comp-ticker2" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
-                    {% for t in tickers %}
-                    <option value="{{ t.ticker }}" {% if t.ticker == default_ticker2 %}selected{% endif %}>{{ t.ticker }} - {{ t.company_name or t.ticker }}</option>
                     {% endfor %}
                 </select>
             </div>
@@ -563,11 +555,10 @@ function updatePredictability() {
         });
 }
 
-// === Company Comparison section (comp-ticker1, comp-ticker2, comp-year-start, comp-year-end) ===
+// === Estimate Convergence section (comp-ticker, comp-year-start, comp-year-end) ===
 function updateComparison() {
-    var ticker1 = document.getElementById('comp-ticker1').value;
-    var ticker2 = document.getElementById('comp-ticker2').value;
-    fetch('/api/chart/comparison?ticker1=' + ticker1 + '&ticker2=' + ticker2 + getSectionYearParams('comp'))
+    var ticker = document.getElementById('comp-ticker').value;
+    fetch('/api/chart/comparison?ticker=' + ticker + getSectionYearParams('comp'))
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.chart) {
@@ -830,9 +821,8 @@ document.getElementById('pred-ticker').addEventListener('change', updatePredicta
 document.getElementById('pred-year-start').addEventListener('change', updatePredictability);
 document.getElementById('pred-year-end').addEventListener('change', updatePredictability);
 
-// Company Comparison section
-document.getElementById('comp-ticker1').addEventListener('change', updateComparison);
-document.getElementById('comp-ticker2').addEventListener('change', updateComparison);
+// Estimate Convergence section
+document.getElementById('comp-ticker').addEventListener('change', updateComparison);
 document.getElementById('comp-year-start').addEventListener('change', updateComparison);
 document.getElementById('comp-year-end').addEventListener('change', updateComparison);
 
