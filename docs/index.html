@@ -22,7 +22,7 @@
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     
     
-<script src="static/prediction_engine.js?v=1776045975"></script>
+<script src="static/prediction_engine.js?v=1776063397"></script>
 <script>
 var _sfCache = {};
 function _applyYearRange(data, ys, ye) {
@@ -84,13 +84,13 @@ function staticFetch(url) {
     if (path === 'eps_history') filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'revision_trail') filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json';
     else if (path === 'dispersion') filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json';
-    else if (path === 'comparison') { isComparison = true; filePath += 'comparison/' + (params.get('ticker1') || 'JNJ') + '_' + (params.get('ticker2') || 'MSFT') + '.json'; }
-    else if (path === 'predictability') { var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + yearSuffix + '.json'; }
+    else if (path === 'comparison') { isComparison = true; var ct1 = params.get('ticker1') || 'JNJ', ct2 = params.get('ticker2') || 'MSFT'; var ca = [ct1,ct2].sort(); filePath += 'comparison/' + ca[0] + '_' + ca[1] + '.json'; }
+    else if (path === 'predictability') { isComparison = true; var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + '.json'; }
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') filePath += 'eps_surprise_returns/' + (ys && ye ? ys + '_' + ye : 'all') + '.json';
-    else if (path === 'eps_returns_trend') filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + yearSuffix + '.json';
+    else if (path === 'eps_surprise_returns') { isComparison = true; filePath += 'eps_surprise_returns/all.json'; }
+    else if (path === 'eps_returns_trend') { isComparison = true; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else filePath += path + '.json';
 
     if (_sfCache[filePath]) {
@@ -102,8 +102,6 @@ function staticFetch(url) {
         if (isComparison && ys && ye) return r.json().then(function(d) { return _applyYearRange(d, ys, ye); });
         return r;
     }).catch(function() {
-        var fallback = filePath.replace(/_[0-9]{4}_[0-9]{4}[.]json$/, '.json');
-        if (fallback !== filePath) return fetch(fallback);
         return new Response('{}', {headers: {'Content-Type': 'application/json'}});
     });
 }
@@ -141,7 +139,7 @@ function staticFetch(url) {
     </div>
     
     <div class="text-center">
-        <span class="text-secondary small">April 12, 2026</span>
+        <span class="text-secondary small">April 13, 2026</span>
     </div>
 </div>
 

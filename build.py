@@ -139,47 +139,23 @@ def generate_api_files(df, ticker_symbols):
             pred_data, _ = predict_eps(df, t, method)
             write_json(os.path.join(data_dir, f'{t}_{method}.json'), pred_data)
     
-    # --- Comparison charts (ticker1 x ticker2) ---
-    pairs = total * total
+    # --- Comparison charts (upper triangle + diagonal only) ---
+    sorted_tickers = sorted(ticker_symbols)
+    pairs = sum(1 for i, t1 in enumerate(sorted_tickers) for t2 in sorted_tickers[i:])
     print(f"  comparison ({pairs} pairs)...")
     d = os.path.join(api_dir, 'comparison')
     count = 0
-    for t1 in ticker_symbols:
-        for t2 in ticker_symbols:
+    for i, t1 in enumerate(sorted_tickers):
+        for t2 in sorted_tickers[i:]:
             chart = create_company_comparison_chart(df, t1, t2)
             write_json(os.path.join(d, f'{t1}_{t2}.json'), {'chart': chart})
             count += 1
-        if count % 200 == 0:
+        if count % 100 == 0:
             print(f"    {count}/{pairs}...")
 
-    # --- Year-filtered charts (for Start Year / End Year dropdowns) ---
-    min_year, max_year = get_year_range(df)
-    year_pairs = [(ys, ye) for ys in range(min_year, max_year + 1)
-                  for ye in range(ys, max_year + 1)]
-    n_yp = len(year_pairs)
-
-    print(f"  predictability + year filters ({total + 1} x {n_yp} year pairs)...")
-    d = os.path.join(api_dir, 'predictability')
-    for t in ticker_symbols + [None]:
-        key = t or 'ALL'
-        for ys, ye in year_pairs:
-            chart = create_eps_predictability_chart(df, t, ys, ye)
-            write_json(os.path.join(d, f'{key}_{ys}_{ye}.json'), {'chart': chart})
-
-    print(f"  eps_surprise_returns + year filters ({n_yp} year pairs)...")
-    d = os.path.join(api_dir, 'eps_surprise_returns')
-    for ys, ye in year_pairs:
-        chart = create_eps_surprise_returns_chart(df, ys, ye)
-        write_json(os.path.join(d, f'{ys}_{ye}.json'), {'chart': chart})
-
-    print(f"  eps_returns_trend + year filters ({total} x {n_yp} year pairs)...")
-    d = os.path.join(api_dir, 'eps_returns_trend')
-    for t in ticker_symbols:
-        for ys, ye in year_pairs:
-            chart = create_eps_vs_returns_trend_chart(df, t, ys, ye)
-            write_json(os.path.join(d, f'{t}_{ys}_{ye}.json'), {'chart': chart})
-
-    # Note: comparison year filtering is handled client-side via Plotly xaxis range
+    # --- Year-filtered charts removed ---
+    # Predictability, eps_surprise_returns, and eps_returns_trend year filtering
+    # is now handled client-side via Plotly xaxis range (same as comparison charts)
 
     # --- Raw ticker data for client-side prediction engine ---
     print(f"  ticker_data ({total} tickers)...")
@@ -248,13 +224,13 @@ function staticFetch(url) {
     if (path === 'eps_history') filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'revision_trail') filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json';
     else if (path === 'dispersion') filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json';
-    else if (path === 'comparison') { isComparison = true; filePath += 'comparison/' + (params.get('ticker1') || 'JNJ') + '_' + (params.get('ticker2') || 'MSFT') + '.json'; }
-    else if (path === 'predictability') { var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + yearSuffix + '.json'; }
+    else if (path === 'comparison') { isComparison = true; var ct1 = params.get('ticker1') || 'JNJ', ct2 = params.get('ticker2') || 'MSFT'; var ca = [ct1,ct2].sort(); filePath += 'comparison/' + ca[0] + '_' + ca[1] + '.json'; }
+    else if (path === 'predictability') { isComparison = true; var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + '.json'; }
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
     else if (path === 'prediction_data') filePath += 'prediction_data/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
-    else if (path === 'eps_surprise_returns') filePath += 'eps_surprise_returns/' + (ys && ye ? ys + '_' + ye : 'all') + '.json';
-    else if (path === 'eps_returns_trend') filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + yearSuffix + '.json';
+    else if (path === 'eps_surprise_returns') { isComparison = true; filePath += 'eps_surprise_returns/all.json'; }
+    else if (path === 'eps_returns_trend') { isComparison = true; filePath += 'eps_returns_trend/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else filePath += path + '.json';
 
     if (_sfCache[filePath]) {
@@ -266,8 +242,6 @@ function staticFetch(url) {
         if (isComparison && ys && ye) return r.json().then(function(d) { return _applyYearRange(d, ys, ye); });
         return r;
     }).catch(function() {
-        var fallback = filePath.replace(/_[0-9]{4}_[0-9]{4}[.]json$/, '.json');
-        if (fallback !== filePath) return fetch(fallback);
         return new Response('{}', {headers: {'Content-Type': 'application/json'}});
     });
 }
