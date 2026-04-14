@@ -1045,7 +1045,7 @@ def create_revenue_time_chart(df, ticker1='JNJ', ticker2='MSFT', year_start=None
     fig.update_xaxes(dtick=1, tickformat='d')  # Force integer years only
     return fig.to_json()
 
-def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=None, year_end=None):
+def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=None, year_end=None, num_quarters=None):
     """Create estimate convergence chart showing how forecasts converge toward actuals over time"""
     import numpy as np
     if df is None:
@@ -1067,6 +1067,11 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
         ticker_data = ticker_data[ticker_data['fpedats'].dt.year >= year_start]
     if year_end:
         ticker_data = ticker_data[ticker_data['fpedats'].dt.year <= year_end]
+    
+    # Limit to most recent N quarters if specified
+    if num_quarters:
+        recent_quarters = ticker_data['fpedats'].drop_duplicates().nlargest(num_quarters)
+        ticker_data = ticker_data[ticker_data['fpedats'].isin(recent_quarters)]
     
     if len(ticker_data) == 0:
         return None
@@ -2110,8 +2115,9 @@ def api_comparison():
     ticker = request.args.get('ticker', 'JNJ')
     year_start = request.args.get('year_start', type=int)
     year_end = request.args.get('year_end', type=int)
+    num_quarters = request.args.get('num_quarters', type=int)
     df = load_data()
-    chart = create_company_comparison_chart(df, ticker, year_start=year_start, year_end=year_end)
+    chart = create_company_comparison_chart(df, ticker, year_start=year_start, year_end=year_end, num_quarters=num_quarters)
     return jsonify({'chart': chart})
 
 @app.route('/api/chart/eps_surprise_returns')

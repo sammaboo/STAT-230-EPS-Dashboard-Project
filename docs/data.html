@@ -63,7 +63,7 @@
     }
 </style>
 
-<script src="static/prediction_engine.js?v=1776193231"></script>
+<script src="static/prediction_engine.js?v=1776193901"></script>
 <script>
 var _sfCache = {};
 var _h = {'Content-Type': 'application/json'};
@@ -142,9 +142,24 @@ function _filterSurpriseReturns(data, ys, ye) {
     data.chart = JSON.stringify(c);
     return _resp(data);
 }
-function _filterComparison(data, ys, ye) {
+function _filterComparison(data, ys, ye, nq) {
     if (!data.chart) return _resp(data);
-    var c = JSON.parse(data.chart), ysN = parseInt(ys), yeN = parseInt(ye);
+    var c = JSON.parse(data.chart);
+    var ysN = ys ? parseInt(ys) : null, yeN = ye ? parseInt(ye) : null;
+    // Collect all unique quarter labels from data
+    var allQLabels = {};
+    for (var i = 0; i < c.data.length; i++) {
+        var tr = c.data[i];
+        if (tr.mode !== 'markers' || !tr.customdata) continue;
+        var cd = tr.customdata;
+        for (var j = 0; j < cd.length; j++) { allQLabels[cd[j][0]] = true; }
+    }
+    // If num_quarters filter, keep only the N most recent quarter labels
+    var allowedQ = null;
+    if (nq) {
+        var qArr = Object.keys(allQLabels).sort();
+        if (nq < qArr.length) { allowedQ = {}; for (var qi = qArr.length - nq; qi < qArr.length; qi++) allowedQ[qArr[qi]] = true; }
+    }
     var allX = [], allY = [];
     for (var i = 0; i < c.data.length; i++) {
         var tr = c.data[i];
@@ -153,7 +168,11 @@ function _filterComparison(data, ys, ye) {
         var nx = [], ny = [], ncd = [];
         for (var j = 0; j < xs.length; j++) {
             var ql = cd[j][0]; var yr = parseInt(ql.substring(0, 4));
-            if (yr >= ysN && yr <= yeN) { nx.push(xs[j]); ny.push(ya[j]); ncd.push(cd[j]); allX.push(xs[j]); allY.push(ya[j]); }
+            var keep = true;
+            if (ysN !== null && yr < ysN) keep = false;
+            if (yeN !== null && yr > yeN) keep = false;
+            if (allowedQ && !allowedQ[ql]) keep = false;
+            if (keep) { nx.push(xs[j]); ny.push(ya[j]); ncd.push(cd[j]); allX.push(xs[j]); allY.push(ya[j]); }
         }
         tr.x = nx; tr.y = ny; tr.customdata = ncd;
     }
@@ -276,7 +295,7 @@ function staticFetch(url) {
     if (path === 'eps_history') { _yearFilter = '_applyYearRange'; filePath += 'eps_history/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'revision_trail') { _yearFilter = '_applyYearRange'; filePath += 'revision_trail/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('num_quarters') || '6') + '.json'; }
     else if (path === 'dispersion') { _yearFilter = '_applyYearRange'; filePath += 'dispersion/' + (params.get('ticker') || 'JNJ') + '.json'; }
-    else if (path === 'comparison') { _yearFilter = '_filterComparison'; filePath += 'comparison/' + (params.get('ticker') || 'JNJ') + '.json'; }
+    else if (path === 'comparison') { filePath += 'comparison/' + (params.get('ticker') || 'JNJ') + '.json'; }
     else if (path === 'predictability') { isPredictability = true; var t = params.get('ticker'); filePath += 'predictability/' + (t || 'ALL') + '.json'; }
     else if (path === 'prediction') filePath += 'prediction/' + (params.get('ticker') || 'JNJ') + '_' + (params.get('method') || 'linear') + '.json';
     else if (path === 'surprise_analysis') filePath += 'surprise_analysis/' + (params.get('ticker') || 'JNJ') + '.json';
@@ -286,15 +305,20 @@ function staticFetch(url) {
     else filePath += path + '.json';
 
     var _filters = {_applyYearRange: _applyYearRange, _filterComparison: _filterComparison, _filterSurpriseReturns: _filterSurpriseReturns, _filterReturnsTrend: _filterReturnsTrend};
+    var _isComparison = (path === 'comparison');
+    var _compNQ = _isComparison ? params.get('num_quarters') : null;
+    var _needsCompFilter = _isComparison && ((ys && ye) || _compNQ);
 
     if (_sfCache[filePath]) {
         if (isPredictability && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _filterPredictability(JSON.parse(JSON.stringify(d)), ys, ye); });
+        if (_needsCompFilter) return _sfCache[filePath].clone().json().then(function(d) { return _filterComparison(JSON.parse(JSON.stringify(d)), ys, ye, _compNQ ? parseInt(_compNQ) : null); });
         if (_yearFilter && ys && ye) return _sfCache[filePath].clone().json().then(function(d) { return _filters[_yearFilter](JSON.parse(JSON.stringify(d)), ys, ye); });
         return Promise.resolve(_sfCache[filePath].clone());
     }
     return fetch(filePath).then(function(r) {
         _sfCache[filePath] = r.clone();
         if (isPredictability && ys && ye) return r.json().then(function(d) { return _filterPredictability(JSON.parse(JSON.stringify(d)), ys, ye); });
+        if (_needsCompFilter) return r.json().then(function(d) { return _filterComparison(JSON.parse(JSON.stringify(d)), ys, ye, _compNQ ? parseInt(_compNQ) : null); });
         if (_yearFilter && ys && ye) return r.json().then(function(d) { return _filters[_yearFilter](JSON.parse(JSON.stringify(d)), ys, ye); });
         return r;
     }).catch(function() {

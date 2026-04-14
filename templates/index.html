@@ -37,10 +37,6 @@
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start mb-2">
             <h5 class="mb-0" style="color: #c9d1d9;">EPS Predictions & Forecasting</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Forecast the next quarter's EPS using six statistical methods and adjust the training window. Below, the surprise analysis reveals whether the company has a pattern of beating or missing estimates — and whether that pattern is seasonal. <strong>Confidence scores are computed via leave-last-4-out backtesting</strong> — the model trains on all data except the last 4 quarters, then predictions are compared to actuals. The resulting MAPE is converted into a confidence score.</div>
-            </div>
         </div>
         <div class="d-flex gap-3 flex-wrap align-items-end">
             <div>
@@ -136,10 +132,6 @@
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start mb-2">
             <h5 class="mb-0" style="color: #c9d1d9;">Estimate Convergence & Dispersion</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">How do analyst estimates evolve over time, and how much do analysts agree? The convergence chart tracks each quarter's consensus estimate as it narrows toward the actual. The dispersion chart measures analyst disagreement quarter by quarter.</div>
-            </div>
         </div>
         <div class="d-flex gap-3 flex-wrap align-items-end">
             <div>
@@ -171,9 +163,18 @@
     <div class="card-body">
         <div class="chart-story-header">
             <span class="chart-story-label">Estimate Convergence</span>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge story-point-sm">Story Point</span>
-                <div class="story-point-tooltip">Each colored line tracks one quarter's consensus EPS estimate over time. The x-axis shows months before the earnings announcement. Stars at x=0 mark the actual: green = beat, red = miss. Tight convergence = predictable company; wide spread = uncertain earnings.</div>
+            <div class="d-flex align-items-center gap-2">
+                <select id="convergence-quarters" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 120px; font-size: 0.75rem;">
+                    <option value="">All Quarters</option>
+                    <option value="4">Last 4 Qtrs</option>
+                    <option value="8" selected>Last 8 Qtrs</option>
+                    <option value="12">Last 12 Qtrs</option>
+                    <option value="20">Last 20 Qtrs</option>
+                </select>
+                <div class="story-point-wrapper">
+                    <span class="story-point-badge story-point-sm">Story Point</span>
+                    <div class="story-point-tooltip">Each dot = one monthly consensus estimate for one quarter. Green dots = beat quarters, red = miss. The blue trend line shows the average forecast error at each lead time. The x-axis shows months before earnings. Stars at x=0 mark the actual. Tight convergence = predictable company.</div>
+                </div>
             </div>
         </div>
         <div class="chart-container"><div id="comparison-chart"></div></div>
@@ -197,10 +198,6 @@
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start mb-2">
             <h5 class="mb-0" style="color: #c9d1d9;">EPS Predictability</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">How persistent are a company's earnings? This regression tests whether last quarter's EPS predicts this quarter's. High R² and a slope near 1.0 mean earnings are stable and forecastable. Filter by company or view the full cross-section.</div>
-            </div>
         </div>
         <div class="d-flex gap-3 flex-wrap align-items-end">
             <div>
@@ -286,10 +283,6 @@
             <div>
                 <h5 class="mb-0" style="color: #c9d1d9;">EPS & Stock Returns Analysis</h5>
             </div>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Does beating estimates drive stock returns? The scatter plot tests this cross-sectionally with all companies pooled. The trend chart below overlays one company's EPS and cumulative stock return to see if they move together. Uses CRSP market data.</div>
-            </div>
         </div>
         <div class="d-flex gap-3 flex-wrap align-items-end">
             <div>
@@ -352,10 +345,6 @@
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start">
             <h5 class="mb-0" style="color: #c9d1d9;">Post-Earnings Announcement Drift</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Post-Earnings Announcement Drift — one of finance's most robust anomalies. Stocks that beat estimates tend to keep rising; misses tend to keep falling. The left chart groups events into surprise quintiles showing average next-quarter returns. The right chart shows the raw scatter of surprise % vs. return.</div>
-            </div>
         </div>
     </div>
     <div class="card-body">
@@ -368,10 +357,6 @@
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start">
             <h5 class="mb-0" style="color: #c9d1d9;">Additional Metrics</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Supplementary cross-sectional views covering analyst estimates vs. actuals, forecast accuracy, revenue and profitability trends, operating margins, and analyst coverage depth. These charts provide broader context across all companies in the dataset.</div>
-            </div>
         </div>
     </div>
     <div class="card-body">
@@ -482,7 +467,10 @@ function getSectionYearParams(prefix) {
 // === Convergence & Dispersion section (hist-ticker, hist-year-start, hist-year-end) ===
 function updateConvergence() {
     var ticker = document.getElementById('hist-ticker').value;
-    fetch('/api/chart/comparison?ticker=' + ticker + getSectionYearParams('hist'))
+    var numQ = document.getElementById('convergence-quarters').value;
+    var url = '/api/chart/comparison?ticker=' + ticker + getSectionYearParams('hist');
+    if (numQ) { url += '&num_quarters=' + numQ; }
+    fetch(url)
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.chart) {
@@ -780,6 +768,25 @@ document.addEventListener('DOMContentLoaded', function() {
     document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
         new bootstrap.Tooltip(el);
     });
+
+    // Position story-point tooltips within viewport on hover
+    document.querySelectorAll('.story-point-wrapper').forEach(function(wrapper) {
+        wrapper.addEventListener('mouseenter', function() {
+            var tip = wrapper.querySelector('.story-point-tooltip');
+            if (!tip) return;
+            var rect = wrapper.getBoundingClientRect();
+            var tipW = 320;
+            var tipH = tip.offsetHeight || 200;
+            var top = rect.bottom + 8;
+            var left = rect.right - tipW;
+            if (left < 8) left = 8;
+            if (left + tipW > window.innerWidth - 8) left = window.innerWidth - tipW - 8;
+            if (top + tipH > window.innerHeight - 8) top = rect.top - tipH - 8;
+            tip.style.top = top + 'px';
+            tip.style.left = left + 'px';
+        });
+    });
+
     initRangeSlider();
     updatePredictionCharts();
     updateConvergence();
@@ -792,6 +799,7 @@ document.addEventListener('DOMContentLoaded', function() {
 document.getElementById('hist-ticker').addEventListener('change', updateHistSection);
 document.getElementById('hist-year-start').addEventListener('change', updateHistSection);
 document.getElementById('hist-year-end').addEventListener('change', updateHistSection);
+document.getElementById('convergence-quarters').addEventListener('change', updateConvergence);
 
 // Predictability section
 document.getElementById('pred-ticker').addEventListener('change', updatePredictability);
