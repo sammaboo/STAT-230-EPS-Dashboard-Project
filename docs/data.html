@@ -63,7 +63,7 @@
     }
 </style>
 
-<script src="static/prediction_engine.js?v=1776209509"></script>
+<script src="static/prediction_engine.js?v=1776210292"></script>
 <script>
 var _sfCache = {};
 var _h = {'Content-Type': 'application/json'};
@@ -356,6 +356,7 @@ function staticFetch(url) {
     </div>
     
     
+    <div id="dt-controls-top"></div>
     <div class="table-responsive">
         <table border="1" class="dataframe table table-striped table-hover">
   <thead>
@@ -3844,6 +3845,7 @@ function staticFetch(url) {
   </tbody>
 </table>
     </div>
+    <div id="dt-controls-bottom"></div>
     
 </div>
 
@@ -3861,7 +3863,7 @@ function staticFetch(url) {
 <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
 <script>
 $(document).ready(function() {
-    $('table').DataTable({
+    var table = $('table').DataTable({
         pageLength: 25,
         order: [[0, 'asc'], [2, 'desc']],
         lengthMenu: [10, 25, 50, 100],
@@ -3923,6 +3925,12 @@ $(document).ready(function() {
             }
         ]
     });
+    // Move search/length controls above the scroll zone, pagination below
+    var wrapper = $(table.table().container());
+    $('#dt-controls-top').append(wrapper.find('.dataTables_length'), wrapper.find('.dataTables_filter'));
+    $('#dt-controls-top').addClass('d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2');
+    $('#dt-controls-bottom').append(wrapper.find('.dataTables_info'), wrapper.find('.dataTables_paginate'));
+    $('#dt-controls-bottom').addClass('d-flex justify-content-between align-items-center mt-3 flex-wrap gap-2');
 });
 </script>
 
