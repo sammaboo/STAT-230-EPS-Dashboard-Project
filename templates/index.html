@@ -177,37 +177,37 @@
                     <div id="predictability-chart"></div>
                     <div class="row g-2 mt-2" id="predictability-stats">
                         <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="R-Squared: Measures how well past EPS predicts current EPS. Values closer to 1.0 mean earnings are highly predictable from one quarter to the next.">
                                 <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">R-Squared</div>
                                 <div id="pred-stat-r2" style="color: #58a6ff; font-size: 1.2rem; font-weight: 600;">-</div>
                             </div>
                         </div>
                         <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Slope: The OLS regression slope of current EPS on lagged EPS. A slope near 1.0 means earnings are very stable quarter to quarter.">
                                 <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Slope</div>
                                 <div id="pred-stat-slope" style="color: #3fb950; font-size: 1.2rem; font-weight: 600;">-</div>
                             </div>
                         </div>
                         <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Mean EPS: The average earnings per share across all observations in the sample.">
                                 <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Mean EPS</div>
                                 <div id="pred-stat-mean" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
                             </div>
                         </div>
                         <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Std Dev: The standard deviation of EPS, measuring how much earnings vary across quarters and companies.">
                                 <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Std Dev</div>
                                 <div id="pred-stat-std" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
                             </div>
                         </div>
                         <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Observations: The total number of quarter-to-quarter EPS pairs used in the regression analysis.">
                                 <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Observations</div>
                                 <div id="pred-stat-obs" style="color: #bc8cff; font-size: 1.2rem; font-weight: 600;">-</div>
                             </div>
                         </div>
                         <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center;">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Companies: The number of unique companies included in the predictability analysis.">
                                 <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Companies</div>
                                 <div id="pred-stat-companies" style="color: #c9d1d9; font-size: 1.2rem; font-weight: 600;">-</div>
                             </div>
@@ -584,18 +584,19 @@ function updateEpsSurpriseReturns() {
 function updateEpsReturnsTrend() {
     var ticker = document.getElementById('returns-ticker').value;
     var trendDiv = document.getElementById('eps-returns-trend-chart');
+    var trendContainer = trendDiv.parentElement;
     if (ticker === 'ALL') {
-        trendDiv.innerHTML = '';
-        trendDiv.parentElement.style.display = 'none';
+        Plotly.purge(trendDiv);
+        trendContainer.style.display = 'none';
         return;
     }
-    trendDiv.parentElement.style.display = '';
+    trendContainer.style.display = '';
     fetch('/api/chart/eps_returns_trend?ticker=' + ticker + getSectionYearParams('returns'))
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.chart) {
                 var c = JSON.parse(data.chart);
-                Plotly.react('eps-returns-trend-chart', c.data, c.layout);
+                Plotly.newPlot('eps-returns-trend-chart', c.data, c.layout);
             }
         });
 }
@@ -865,11 +866,30 @@ var _surpMethodInfo = {
     last_year: 'Uses the most recent observed surprise for each calendar quarter as the prediction (e.g., last Q3 surprise \u2192 next Q3).',
     trend: 'Fits a linear trend line through historical surprises and extrapolates forward in time.'
 };
+var _epsMethodLabels = { linear: 'Linear Regression', exponential: 'Exponential Smoothing', moving_avg: 'Moving Average', analyst: 'Analyst-Adjusted', holt_winters: 'Holt-Winters', sarima: 'SARIMA' };
+var _surpMethodLabels = { seasonal_avg: 'Seasonal Average', overall_avg: 'Overall Average', last_year: 'Last Year', trend: 'Trend' };
 function updateMethodInfo() {
     var em = document.getElementById('prediction-method');
     var sm = document.getElementById('surprise-method');
-    var html = '<strong>' + em.options[em.selectedIndex].text + ':</strong> ' + (_epsMethodInfo[em.value] || '') + '<br><hr style="border-color:#30363d;margin:6px 0;"><strong>Surprise \u2014 ' + sm.options[sm.selectedIndex].text + ':</strong> ' + (_surpMethodInfo[sm.value] || '');
-    document.getElementById('method-info').innerHTML = html;
+    var selEps = em.value;
+    var selSurp = sm.value;
+    // Build EPS methods list sorted with selected first
+    var epsKeys = Object.keys(_epsMethodInfo);
+    epsKeys.sort(function(a, b) { if (a === selEps) return -1; if (b === selEps) return 1; return 0; });
+    var epsHtml = '<strong>EPS Forecast Methods:</strong><br>';
+    epsKeys.forEach(function(k) {
+        var isSel = k === selEps;
+        epsHtml += '<span style="color:' + (isSel ? '#58a6ff' : '#8b949e') + ';font-weight:' + (isSel ? '600' : '400') + '">' + (isSel ? '\u25b6 ' : '\u2022 ') + _epsMethodLabels[k] + ':</span> ' + _epsMethodInfo[k] + '<br>';
+    });
+    // Build Surprise methods list sorted with selected first
+    var surpKeys = Object.keys(_surpMethodInfo);
+    surpKeys.sort(function(a, b) { if (a === selSurp) return -1; if (b === selSurp) return 1; return 0; });
+    var surpHtml = '<strong>Surprise Prediction Methods:</strong><br>';
+    surpKeys.forEach(function(k) {
+        var isSel = k === selSurp;
+        surpHtml += '<span style="color:' + (isSel ? '#58a6ff' : '#8b949e') + ';font-weight:' + (isSel ? '600' : '400') + '">' + (isSel ? '\u25b6 ' : '\u2022 ') + _surpMethodLabels[k] + ':</span> ' + _surpMethodInfo[k] + '<br>';
+    });
+    document.getElementById('method-info').innerHTML = epsHtml + '<hr style="border-color:#30363d;margin:6px 0;">' + surpHtml;
 }
 updateMethodInfo();
 </script>

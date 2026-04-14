@@ -623,12 +623,13 @@ def create_pead_chart(df):
     
     fig.update_layout(
         title='Post-Earnings Announcement Drift (PEAD)<br><sub>Do stocks continue drifting after earnings surprises? Next-quarter returns by surprise magnitude.</sub>',
-        height=420,
+        height=450,
+        margin=dict(t=80),
         **DARK_LAYOUT
     )
     fig.update_xaxes(gridcolor='#30363d', linecolor='#30363d', tickfont=dict(color='#8b949e'))
     fig.update_yaxes(gridcolor='#30363d', linecolor='#30363d', tickfont=dict(color='#8b949e'))
-    fig.update_yaxes(title_text='Avg Next-Quarter Return (%)', row=1, col=1)
+    fig.update_yaxes(title_text='Avg Next-Quarter Return (%)', row=1, col=1, automargin=True)
     fig.update_xaxes(title_text='Surprise Quintile', row=1, col=1)
     fig.update_yaxes(title_text='Next-Quarter Return (%)', row=1, col=2)
     fig.update_xaxes(title_text='EPS Surprise (%)', row=1, col=2)
@@ -1170,11 +1171,11 @@ def create_company_comparison_chart(df, ticker1='JNJ', ticker2=None, year_start=
         xaxis_title='Months Before Earnings',
         yaxis_title='Forecast Error %',
         height=520,
-        margin=dict(t=120),
+        margin=dict(t=150),
         legend=dict(
             orientation='h',
             yanchor='bottom',
-            y=1.12,
+            y=1.18,
             xanchor='center',
             x=0.5,
             font=dict(color='#c9d1d9', size=10)
@@ -1205,8 +1206,15 @@ def create_eps_surprise_returns_chart(df, ticker=None, year_start=None, year_end
     plot_data = plot_data.sort_values('statpers').groupby(['ticker', 'fpedats']).agg({
         'eps_surprise': 'first',
         'quarterly_ret': 'first',
-        'fyear': 'first'
+        'fyear': 'first',
+        'fqtr': 'first'
     }).reset_index()
+    
+    # Build quarter label (e.g. "2023 Q2")
+    plot_data['q_label'] = plot_data.apply(
+        lambda r: f"{int(r['fyear'])} Q{int(r['fqtr'])}" if pd.notna(r['fqtr']) else f"{int(r['fyear'])}",
+        axis=1
+    )
     
     # Apply year filter
     if year_start:
@@ -1231,8 +1239,8 @@ def create_eps_surprise_returns_chart(df, ticker=None, year_start=None, year_end
             mode='markers',
             name=t,
             marker=dict(size=10, opacity=0.7, color=palette[i % len(palette)]),
-            customdata=td[['fyear']].values,
-            hovertemplate=f'{t}<br>Surprise: %{{x:.2f}}%<br>Return: %{{y:.2f}}%<extra></extra>'
+            customdata=td[['fyear', 'q_label']].values,
+            hovertemplate=f'{t}<br>%{{customdata[1]}}<br>Surprise: %{{x:.2f}}%<br>Return: %{{y:.2f}}%<extra></extra>'
         ))
     
     # Single OLS trendline for ALL data
@@ -1665,7 +1673,7 @@ def create_prediction_chart(df, ticker='JNJ', method='linear', timeframe='all', 
     fig = make_subplots(rows=2, cols=1, 
                         subplot_titles=[f'{ticker} EPS Forecast ({method.title()} Method)', 
                                        f'{ticker} Surprise Pattern (Historical + Predicted)'],
-                        vertical_spacing=0.15,
+                        vertical_spacing=0.18,
                         row_heights=[0.6, 0.4],
                         shared_xaxes=True)
     
@@ -1820,7 +1828,8 @@ def create_prediction_chart(df, ticker='JNJ', method='linear', timeframe='all', 
     fig.add_hline(y=0, line_color="#30363d", row=2, col=1)
     
     fig.update_layout(
-        height=550,
+        height=580,
+        margin=dict(t=60),
         **DARK_LAYOUT
     )
     # Override DARK_LAYOUT legend with horizontal positioning
