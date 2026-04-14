@@ -854,6 +854,7 @@ def create_profitability_chart(df):
                   labels={'fyear': 'Fiscal Year', 'ni': 'Net Income ($M)', 'ticker': 'Company'},
                   markers=True)
     fig.update_layout(height=400, **DARK_LAYOUT)
+    fig.update_xaxes(dtick=1, tickformat='d')
     return fig.to_json()
 
 def create_ebitda_margin_chart(df):
