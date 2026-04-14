@@ -88,12 +88,45 @@ $(document).ready(function() {
                 }
             },
             {
-                targets: [7, 8, 9],
+                targets: [6, 7],
+                render: function(data, type, row) {
+                    if (type === 'display' && data && data !== '-') {
+                        var val = parseFloat(data);
+                        if (isNaN(val)) return data;
+                        return val.toFixed(4);
+                    }
+                    return data;
+                }
+            },
+            {
+                targets: [9, 10, 11, 16],
                 render: function(data, type, row) {
                     if (type === 'display' && data && data !== '-') {
                         var val = parseFloat(data);
                         if (isNaN(val)) return data;
                         return val.toLocaleString('en-US', {maximumFractionDigits: 0});
+                    }
+                    return data;
+                }
+            },
+            {
+                targets: [12, 14],
+                render: function(data, type, row) {
+                    if (type === 'display' && data && data !== '-') {
+                        var val = parseFloat(data);
+                        if (isNaN(val)) return data;
+                        return '$' + val.toFixed(2);
+                    }
+                    return data;
+                }
+            },
+            {
+                targets: [13, 15],
+                render: function(data, type, row) {
+                    if (type === 'display' && data && data !== '-') {
+                        var val = parseFloat(data);
+                        if (isNaN(val)) return data;
+                        return (val * 100).toFixed(2) + '%';
                     }
                     return data;
                 }

@@ -2501,14 +2501,20 @@ def data_table():
     # Use the last estimate row per ticker/fyear for EPS data
     latest = df.sort_values('statpers').groupby(['ticker', 'fyear']).last().reset_index()
     
-    summary = latest[['ticker', 'company_name', 'fyear', 'meanest', 'actual', 'eps_surprise', 'numest', 'sale', 'ni', 'at']].copy()
-    summary.columns = ['Ticker', 'Company', 'Year', 'Est. EPS', 'Actual EPS', 'Surprise %', '# Analysts', 'Revenue ($M)', 'Net Income ($M)', 'Total Assets ($M)']
+    summary = latest[['ticker', 'company_name', 'fyear', 'meanest', 'medest', 'actual', 'eps_surprise', 'stdev', 'numest',
+                       'sale', 'ni', 'at', 'quarter_end_price', 'quarterly_ret', 'year_end_price', 'annual_ret',
+                       'annual_volume', 'n_months']].copy()
+    summary.columns = ['Ticker', 'Company', 'Year', 'Est. EPS', 'Median EPS', 'Actual EPS', 'Surprise %', 'EPS Std Dev', '# Analysts',
+                        'Revenue ($M)', 'Net Income ($M)', 'Total Assets ($M)', 'Qtr End Price', 'Quarterly Ret',
+                        'Year End Price', 'Annual Ret', 'Annual Volume', '# Months']
     summary = summary.sort_values(['Ticker', 'Year'], ascending=[True, False])
     
     # Round numeric columns
-    for col in ['Est. EPS', 'Actual EPS', 'Surprise %']:
+    for col in ['Est. EPS', 'Median EPS', 'Actual EPS', 'Surprise %', 'EPS Std Dev']:
         summary[col] = summary[col].round(4)
-    for col in ['Revenue ($M)', 'Net Income ($M)', 'Total Assets ($M)']:
+    for col in ['Qtr End Price', 'Year End Price', 'Quarterly Ret', 'Annual Ret']:
+        summary[col] = summary[col].round(4)
+    for col in ['Revenue ($M)', 'Net Income ($M)', 'Total Assets ($M)', 'Annual Volume']:
         summary[col] = summary[col].round(0)
     
     return render_template('data.html', 
