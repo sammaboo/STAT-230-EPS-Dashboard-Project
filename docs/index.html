@@ -441,7 +441,7 @@ function staticFetch(url) {
             <span class="chart-story-label">EPS Forecast</span>
             <div class="story-point-wrapper">
                 <span class="story-point-badge story-point-sm">Story Point</span>
-                <div class="story-point-tooltip">Forecast future EPS using the selected statistical method. Gray line = historical actuals, colored line = fitted values, dashed = out-of-sample forecast. Confidence is based on leave-last-4-out backtesting MAPE. Adjust the training window slider to see how the forecast changes with different data ranges.</div>
+                <div class="story-point-tooltip">This graph forecasts future EPS based on the selected forecast method. You can select a training period to adjust your forecast as desired. There is more information about the selected method below the graphs in the method info box. Model Confidence is calculated as the max of (0, 100 - MAPE) where MAPE is the summation across quarters of the (actual EPS - predicted EPS)/actual EPS in percentage form. The bar chart below graphs the suprise % (Difference between estimate and actual EPS for that quarter).</div>
             </div>
         </div>
         <div class="chart-container"><div id="prediction-chart"></div></div>
@@ -449,7 +449,7 @@ function staticFetch(url) {
             <span class="chart-story-label">Surprise Analysis</span>
             <div class="story-point-wrapper">
                 <span class="story-point-badge story-point-sm">Story Point</span>
-                <div class="story-point-tooltip">Top panel: seasonal beat/miss patterns by fiscal quarter — reveals if surprises cluster in certain quarters. Bottom panel: rolling 4-quarter average surprise % over time, tracking whether the company is trending toward more beats or misses.</div>
+                <div class="story-point-tooltip">The boxplot shows seasonal beat and miss paterns by quarter. This helps determine which quarters on average experience higher volatility in their EPS metrics. The line graph shows a rolling average that adjusts to the specified training period.</div>
             </div>
         </div>
         <div class="chart-container"><div id="surprise-analysis-chart"></div></div>
@@ -592,7 +592,7 @@ function staticFetch(url) {
                 </select>
                 <div class="story-point-wrapper">
                     <span class="story-point-badge story-point-sm">Story Point</span>
-                    <div class="story-point-tooltip">Each dot = one monthly consensus estimate for one quarter. Green dots = beat quarters, red = miss. The blue trend line shows the average forecast error at each lead time. The x-axis shows months before earnings. Stars at x=0 mark the actual. Tight convergence = predictable company.</div>
+                    <div class="story-point-tooltip">In this dotplot, each dot represents one monthly consensus estimate for one quarter. Green dots represent EPS beats, and red dots represent EPS misses. The blue trend line shows the average forecast error at each lead time. A predictable company will have a tigher convergence. It is also notable that most estiamtes tend to be below actual reported EPS.</div>
                 </div>
             </div>
         </div>
@@ -639,7 +639,7 @@ function staticFetch(url) {
             <span class="chart-story-label">Analyst Dispersion</span>
             <div class="story-point-wrapper">
                 <span class="story-point-badge story-point-sm">Story Point</span>
-                <div class="story-point-tooltip">Measures analyst disagreement — the standard deviation of individual EPS estimates divided by the absolute consensus value. Higher dispersion means less agreement among analysts. Spikes in dispersion often precede earnings surprises or periods of uncertainty.</div>
+                <div class="story-point-tooltip">This graphs displays analyst disagreement. This is calculated by taking the standard deviation of individual EPS estimates divided by the absolute consensus value. Higher dispersion means less agreement among analysts. Spikes in dispersion often precede earnings surprises or periods of uncertainty.</div>
             </div>
         </div>
         <div class="chart-container"><div id="dispersion-chart"></div></div>
