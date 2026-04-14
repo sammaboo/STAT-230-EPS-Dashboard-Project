@@ -1274,7 +1274,21 @@ def create_eps_surprise_returns_chart(df, ticker=None, year_start=None, year_end
     fig.add_hline(y=0, line_dash="dash", line_color="#8b949e", opacity=0.5)
     fig.add_vline(x=0, line_dash="dash", line_color="#8b949e", opacity=0.5)
     
-    return fig.to_json()
+    # Compute stats for metric boxes
+    stats = {}
+    if mask.sum() > 2:
+        stats['r_squared'] = round(r**2, 4)
+        stats['slope'] = round(slope, 4)
+        stats['p_value'] = round(p, 4)
+    else:
+        stats['r_squared'] = None
+        stats['slope'] = None
+        stats['p_value'] = None
+    stats['avg_surprise'] = round(plot_data['eps_surprise'].mean(), 2)
+    stats['observations'] = int(len(plot_data))
+    stats['companies'] = int(plot_data['ticker'].nunique())
+    
+    return fig.to_json(), stats
 
 def create_returns_comparison_chart(df, ticker1='JNJ', ticker2='MSFT', year_start=None, year_end=None):
     """Create annual returns comparison for two companies"""
@@ -2022,12 +2036,11 @@ def index():
         'revenue_time': create_revenue_time_chart(df, default_ticker1, default_ticker2),
         'company_comparison': create_company_comparison_chart(df, default_ticker1),
         # Returns charts (requires CRSP data)
-        'eps_surprise_returns': create_eps_surprise_returns_chart(df),
+        'eps_surprise_returns': create_eps_surprise_returns_chart(df)[0],
         'returns_comparison': create_returns_comparison_chart(df, default_ticker1, default_ticker2),
         'eps_returns_trend': create_eps_vs_returns_trend_chart(df, default_ticker1),
         # New analysis charts
         'revision_trail': create_revision_trail_chart(df, default_ticker1)[0],
-        'pead': create_pead_chart(df),
         'dispersion': create_dispersion_chart(df, default_ticker1)
     }
     
@@ -2128,8 +2141,8 @@ def api_eps_surprise_returns():
     year_start = request.args.get('year_start', type=int)
     year_end = request.args.get('year_end', type=int)
     df = load_data()
-    chart = create_eps_surprise_returns_chart(df, ticker, year_start, year_end)
-    return jsonify({'chart': chart})
+    chart, stats = create_eps_surprise_returns_chart(df, ticker, year_start, year_end)
+    return jsonify({'chart': chart, 'stats': stats})
 
 @app.route('/api/chart/returns_comparison')
 def api_returns_comparison():
