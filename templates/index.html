@@ -88,37 +88,37 @@
                 <div class="chart-container"><div id="revision-trail-chart"></div></div>
                 <div id="revision-metrics" class="row mt-2 g-2">
                     <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" title="Walk-Down Effect: How much the consensus estimate typically decreases from initial forecast to final estimate. A positive value means analysts tend to start optimistic and revise downward.">
+                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Walk-Down Effect: How much the consensus estimate typically decreases from initial forecast to final estimate. A positive value means analysts tend to start optimistic and revise downward.">
                             <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Walk-Down</div>
                             <div id="metric-walkdown" style="color: #58a6ff; font-size: 1.2rem; font-weight: 600;">-</div>
                         </div>
                     </div>
                     <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" title="Accuracy (Median): The median absolute percentage error between the final consensus estimate and the actual EPS. Lower values mean analysts are more accurate for this company.">
+                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Accuracy (Median): The median absolute percentage error between the final consensus estimate and the actual EPS. Lower values mean analysts are more accurate for this company.">
                             <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Accuracy (Median)</div>
                             <div id="metric-accuracy" style="color: #3fb950; font-size: 1.2rem; font-weight: 600;">-</div>
                         </div>
                     </div>
                     <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" title="Beat Rate: The percentage of quarters where actual EPS exceeded the final consensus estimate. A rate above 50% suggests the company consistently outperforms analyst expectations.">
+                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Beat Rate: The percentage of quarters where actual EPS exceeded the final consensus estimate. A rate above 50% suggests the company consistently outperforms analyst expectations.">
                             <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Beat Rate</div>
                             <div id="metric-beat-rate" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
                         </div>
                     </div>
                     <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" title="Average Surprise: The mean percentage difference between actual EPS and the consensus estimate across all quarters. Positive means the company tends to beat estimates on average.">
+                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Average Surprise: The mean percentage difference between actual EPS and the consensus estimate across all quarters. Positive means the company tends to beat estimates on average.">
                             <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Avg Surprise</div>
                             <div id="metric-avg-surprise" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
                         </div>
                     </div>
                     <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" title="Converges &lt;5%: The percentage of quarters where the final consensus estimate was within 5% of the actual EPS. Higher values indicate analyst estimates reliably narrow close to the true result.">
+                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Converges &lt;5%: The percentage of quarters where the final consensus estimate was within 5% of the actual EPS. Higher values indicate analyst estimates reliably narrow close to the true result.">
                             <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Converges &lt;5%</div>
                             <div id="metric-convergence" style="color: #bc8cff; font-size: 1.2rem; font-weight: 600;">-</div>
                         </div>
                     </div>
                     <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" title="Quarters: The total number of fiscal quarters included in the revision trail analysis. More quarters provide a more reliable picture of analyst behavior.">
+                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Quarters: The total number of fiscal quarters included in the revision trail analysis. More quarters provide a more reliable picture of analyst behavior.">
                             <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Quarters</div>
                             <div id="metric-quarters" style="color: #c9d1d9; font-size: 1.2rem; font-weight: 600;">-</div>
                         </div>
@@ -810,6 +810,10 @@ function updatePredictionCharts() {
 
 // === Initialize on page load ===
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips on metric boxes
+    document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(function(el) {
+        new bootstrap.Tooltip(el);
+    });
     initRangeSlider();
     updatePredictionCharts();
     updateRevisionTrail();
