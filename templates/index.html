@@ -32,216 +32,7 @@
 </div>
 {% else %}
 
-<!-- Section 1: Historical EPS Analysis -->
-<div class="card mb-4" style="background-color: #161b22; border: 1px solid #30363d;">
-    <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-            <h5 class="mb-0" style="color: #c9d1d9;">Historical EPS Analysis</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Explore a company's earnings track record. This section shows quarterly EPS vs. analyst estimates, how forecasts evolve over time (revision trail), and the level of analyst disagreement (dispersion). Pick a company and date range to start — hover over each chart's Story Point for details.</div>
-            </div>
-        </div>
-        <div class="d-flex gap-3 flex-wrap align-items-end">
-            <div>
-                <label for="hist-ticker" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company</label>
-                <select id="hist-ticker" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
-                    {% for t in tickers %}
-                    <option value="{{ t.ticker }}" {% if t.ticker == default_ticker1 %}selected{% endif %}>{{ t.ticker }} - {{ t.company_name or t.ticker }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="hist-year-start" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Start Year</label>
-                <select id="hist-year-start" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
-                    {% for y in range(min_year, max_year + 1) %}
-                    <option value="{{ y }}" {% if y == min_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="hist-year-end" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">End Year</label>
-                <select id="hist-year-end" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
-                    {% for y in range(min_year, max_year + 1) %}
-                    <option value="{{ y }}" {% if y == max_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="chart-story-header">
-            <span class="chart-story-label">EPS History</span>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge story-point-sm">Story Point</span>
-                <div class="story-point-tooltip">Quarterly actual EPS (bars) vs. median analyst consensus estimate (line). Green bars indicate the company beat expectations; red bars indicate a miss. Reveals the company's earnings trajectory and how closely analysts tracked performance over time.</div>
-            </div>
-        </div>
-        <div class="chart-container"><div id="eps-history-chart"></div></div>
-        <div class="row mt-3">
-            <div class="col-lg-12">
-                <div class="d-flex justify-content-between align-items-center mb-2">
-                    <div class="d-flex align-items-center gap-2">
-                        <span style="color: #8b949e; font-size: 0.85rem;">Revision Trail</span>
-                        <div class="story-point-wrapper">
-                            <span class="story-point-badge story-point-sm">Story Point</span>
-                            <div class="story-point-tooltip">Each line tracks one quarter's consensus EPS estimate as it gets revised over time. The x-axis shows months before the earnings announcement. Lines should converge toward the actual value (star markers) as the report date nears. Green star = beat, red star = miss.</div>
-                        </div>
-                    </div>
-                    <div class="d-flex align-items-center gap-2">
-                        <label for="revision-quarters" style="color: #8b949e; font-size: 0.8rem; white-space: nowrap;">Quarters:</label>
-                        <select id="revision-quarters" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 80px;">
-                            <option value="4">4</option>
-                            <option value="6" selected>6</option>
-                            <option value="8">8</option>
-                            <option value="12">12</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="chart-container"><div id="revision-trail-chart"></div></div>
-                <div id="revision-metrics" class="row mt-2 g-2">
-                    <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Walk-Down Effect: How much the consensus estimate typically decreases from initial forecast to final estimate. A positive value means analysts tend to start optimistic and revise downward.">
-                            <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Walk-Down</div>
-                            <div id="metric-walkdown" style="color: #58a6ff; font-size: 1.2rem; font-weight: 600;">-</div>
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Accuracy (Median): The median absolute percentage error between the final consensus estimate and the actual EPS. Lower values mean analysts are more accurate for this company.">
-                            <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Accuracy (Median)</div>
-                            <div id="metric-accuracy" style="color: #3fb950; font-size: 1.2rem; font-weight: 600;">-</div>
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Beat Rate: The percentage of quarters where actual EPS exceeded the final consensus estimate. A rate above 50% suggests the company consistently outperforms analyst expectations.">
-                            <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Beat Rate</div>
-                            <div id="metric-beat-rate" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Average Surprise: The mean percentage difference between actual EPS and the consensus estimate across all quarters. Positive means the company tends to beat estimates on average.">
-                            <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Avg Surprise</div>
-                            <div id="metric-avg-surprise" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Converges &lt;5%: The percentage of quarters where the final consensus estimate was within 5% of the actual EPS. Higher values indicate analyst estimates reliably narrow close to the true result.">
-                            <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Converges &lt;5%</div>
-                            <div id="metric-convergence" style="color: #bc8cff; font-size: 1.2rem; font-weight: 600;">-</div>
-                        </div>
-                    </div>
-                    <div class="col-2">
-                        <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true" title="Quarters: The total number of fiscal quarters included in the revision trail analysis. More quarters provide a more reliable picture of analyst behavior.">
-                            <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Quarters</div>
-                            <div id="metric-quarters" style="color: #c9d1d9; font-size: 1.2rem; font-weight: 600;">-</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="row mt-3">
-            <div class="col-lg-12">
-                <div class="chart-story-header">
-                    <span class="chart-story-label">Analyst Dispersion</span>
-                    <div class="story-point-wrapper">
-                        <span class="story-point-badge story-point-sm">Story Point</span>
-                        <div class="story-point-tooltip">Measures analyst disagreement — the standard deviation of individual EPS estimates divided by the absolute consensus value. Higher dispersion means less agreement among analysts. Spikes in dispersion often precede earnings surprises or periods of uncertainty.</div>
-                    </div>
-                </div>
-                <div class="chart-container"><div id="dispersion-chart"></div></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Section 2: EPS Predictability -->
-<div class="card mb-4" style="background-color: #161b22; border: 1px solid #30363d;">
-    <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
-        <div class="d-flex justify-content-between align-items-start mb-2">
-            <h5 class="mb-0" style="color: #c9d1d9;">EPS Predictability</h5>
-            <div class="story-point-wrapper">
-                <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">How persistent are a company's earnings? This regression tests whether last quarter's EPS predicts this quarter's. High R² and a slope near 1.0 mean earnings are stable and forecastable. Filter by company or view the full cross-section.</div>
-            </div>
-        </div>
-        <div class="d-flex gap-3 flex-wrap align-items-end">
-            <div>
-                <label for="pred-ticker" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company</label>
-                <select id="pred-ticker" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
-                    <option value="ALL" {% if not default_ticker1 %}selected{% endif %}>All Companies</option>
-                    {% for t in tickers %}
-                    <option value="{{ t.ticker }}" {% if t.ticker == default_ticker1 %}selected{% endif %}>{{ t.ticker }} - {{ t.company_name or t.ticker }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="pred-year-start" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Start Year</label>
-                <select id="pred-year-start" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
-                    {% for y in range(min_year, max_year + 1) %}
-                    <option value="{{ y }}" {% if y == min_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div>
-                <label for="pred-year-end" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">End Year</label>
-                <select id="pred-year-end" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
-                    {% for y in range(min_year, max_year + 1) %}
-                    <option value="{{ y }}" {% if y == max_year %}selected{% endif %}>{{ y }}</option>
-                    {% endfor %}
-                </select>
-            </div>
-        </div>
-    </div>
-    <div class="card-body">
-        <div class="row">
-            <div class="col-12">
-                <div class="chart-container">
-                    <div id="predictability-chart"></div>
-                    <div class="row g-2 mt-2" id="predictability-stats">
-                        <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="R-Squared: Measures how well past EPS predicts current EPS. Values closer to 1.0 mean earnings are highly predictable from one quarter to the next.">
-                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">R-Squared</div>
-                                <div id="pred-stat-r2" style="color: #58a6ff; font-size: 1.2rem; font-weight: 600;">-</div>
-                            </div>
-                        </div>
-                        <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Slope: The OLS regression slope of current EPS on lagged EPS. A slope near 1.0 means earnings are very stable quarter to quarter.">
-                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Slope</div>
-                                <div id="pred-stat-slope" style="color: #3fb950; font-size: 1.2rem; font-weight: 600;">-</div>
-                            </div>
-                        </div>
-                        <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Mean EPS: The average earnings per share across all observations in the sample.">
-                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Mean EPS</div>
-                                <div id="pred-stat-mean" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
-                            </div>
-                        </div>
-                        <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Std Dev: The standard deviation of EPS, measuring how much earnings vary across quarters and companies.">
-                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Std Dev</div>
-                                <div id="pred-stat-std" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
-                            </div>
-                        </div>
-                        <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Observations: The total number of quarter-to-quarter EPS pairs used in the regression analysis.">
-                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Observations</div>
-                                <div id="pred-stat-obs" style="color: #bc8cff; font-size: 1.2rem; font-weight: 600;">-</div>
-                            </div>
-                        </div>
-                        <div class="col-2">
-                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Companies: The number of unique companies included in the predictability analysis.">
-                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Companies</div>
-                                <div id="pred-stat-companies" style="color: #c9d1d9; font-size: 1.2rem; font-weight: 600;">-</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Section 3: EPS Predictions & Forecasting -->
+<!-- Section 1: EPS Predictions & Forecasting -->
 <div class="card mb-4" style="background-color: #161b22; border: 1px solid #30363d;">
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start mb-2">
@@ -340,36 +131,98 @@
     </div>
 </div>
 
-<!-- Section 4: Estimate Convergence -->
+<!-- Section 2: Estimate Convergence & Dispersion -->
 <div class="card mb-4" style="background-color: #161b22; border: 1px solid #30363d;">
     <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
         <div class="d-flex justify-content-between align-items-start mb-2">
-            <h5 class="mb-0" style="color: #c9d1d9;">Estimate Convergence</h5>
+            <h5 class="mb-0" style="color: #c9d1d9;">Estimate Convergence & Dispersion</h5>
             <div class="story-point-wrapper">
                 <span class="story-point-badge">Story Point</span>
-                <div class="story-point-tooltip">Watch analyst consensus estimates converge toward actual EPS as the earnings date approaches. Each colored line = one fiscal quarter. Stars at x=0 show the actual: green = beat, red = miss. Tight convergence = predictable company; wide dispersion = uncertain earnings.</div>
+                <div class="story-point-tooltip">How do analyst estimates evolve over time, and how much do analysts agree? The convergence chart tracks each quarter's consensus estimate as it narrows toward the actual. The dispersion chart measures analyst disagreement quarter by quarter.</div>
             </div>
         </div>
         <div class="d-flex gap-3 flex-wrap align-items-end">
             <div>
-                <label for="comp-ticker" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company</label>
-                <select id="comp-ticker" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
+                <label for="hist-ticker" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company</label>
+                <select id="hist-ticker" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
                     {% for t in tickers %}
                     <option value="{{ t.ticker }}" {% if t.ticker == default_ticker1 %}selected{% endif %}>{{ t.ticker }} - {{ t.company_name or t.ticker }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label for="comp-year-start" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Start Year</label>
-                <select id="comp-year-start" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
+                <label for="hist-year-start" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Start Year</label>
+                <select id="hist-year-start" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
                     {% for y in range(min_year, max_year + 1) %}
                     <option value="{{ y }}" {% if y == min_year %}selected{% endif %}>{{ y }}</option>
                     {% endfor %}
                 </select>
             </div>
             <div>
-                <label for="comp-year-end" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">End Year</label>
-                <select id="comp-year-end" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
+                <label for="hist-year-end" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">End Year</label>
+                <select id="hist-year-end" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
+                    {% for y in range(min_year, max_year + 1) %}
+                    <option value="{{ y }}" {% if y == max_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="chart-story-header">
+            <span class="chart-story-label">Estimate Convergence</span>
+            <div class="story-point-wrapper">
+                <span class="story-point-badge story-point-sm">Story Point</span>
+                <div class="story-point-tooltip">Each colored line tracks one quarter's consensus EPS estimate over time. The x-axis shows months before the earnings announcement. Stars at x=0 mark the actual: green = beat, red = miss. Tight convergence = predictable company; wide spread = uncertain earnings.</div>
+            </div>
+        </div>
+        <div class="chart-container"><div id="comparison-chart"></div></div>
+        <div class="row mt-3">
+            <div class="col-lg-12">
+                <div class="chart-story-header">
+                    <span class="chart-story-label">Analyst Dispersion</span>
+                    <div class="story-point-wrapper">
+                        <span class="story-point-badge story-point-sm">Story Point</span>
+                        <div class="story-point-tooltip">Measures analyst disagreement — the standard deviation of individual EPS estimates divided by the absolute consensus value. Higher dispersion means less agreement among analysts. Spikes in dispersion often precede earnings surprises or periods of uncertainty.</div>
+                    </div>
+                </div>
+                <div class="chart-container"><div id="dispersion-chart"></div></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Section 2: EPS Predictability -->
+<div class="card mb-4" style="background-color: #161b22; border: 1px solid #30363d;">
+    <div class="card-header" style="background-color: #21262d; border-bottom: 1px solid #30363d;">
+        <div class="d-flex justify-content-between align-items-start mb-2">
+            <h5 class="mb-0" style="color: #c9d1d9;">EPS Predictability</h5>
+            <div class="story-point-wrapper">
+                <span class="story-point-badge">Story Point</span>
+                <div class="story-point-tooltip">How persistent are a company's earnings? This regression tests whether last quarter's EPS predicts this quarter's. High R² and a slope near 1.0 mean earnings are stable and forecastable. Filter by company or view the full cross-section.</div>
+            </div>
+        </div>
+        <div class="d-flex gap-3 flex-wrap align-items-end">
+            <div>
+                <label for="pred-ticker" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Company</label>
+                <select id="pred-ticker" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 200px;">
+                    <option value="ALL" {% if not default_ticker1 %}selected{% endif %}>All Companies</option>
+                    {% for t in tickers %}
+                    <option value="{{ t.ticker }}" {% if t.ticker == default_ticker1 %}selected{% endif %}>{{ t.ticker }} - {{ t.company_name or t.ticker }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="pred-year-start" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">Start Year</label>
+                <select id="pred-year-start" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
+                    {% for y in range(min_year, max_year + 1) %}
+                    <option value="{{ y }}" {% if y == min_year %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="pred-year-end" class="form-label mb-1" style="color: #8b949e; font-size: 0.8rem;">End Year</label>
+                <select id="pred-year-end" class="form-select form-select-sm" style="background-color: #161b22; color: #c9d1d9; border-color: #30363d; width: 100px;">
                     {% for y in range(min_year, max_year + 1) %}
                     <option value="{{ y }}" {% if y == max_year %}selected{% endif %}>{{ y }}</option>
                     {% endfor %}
@@ -379,7 +232,49 @@
     </div>
     <div class="card-body">
         <div class="row">
-            <div class="col-12"><div class="chart-container"><div id="comparison-chart"></div></div></div>
+            <div class="col-12">
+                <div class="chart-container">
+                    <div id="predictability-chart"></div>
+                    <div class="row g-2 mt-2" id="predictability-stats">
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="R-Squared: Measures how well past EPS predicts current EPS. Values closer to 1.0 mean earnings are highly predictable from one quarter to the next.">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">R-Squared</div>
+                                <div id="pred-stat-r2" style="color: #58a6ff; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Slope: The OLS regression slope of current EPS on lagged EPS. A slope near 1.0 means earnings are very stable quarter to quarter.">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Slope</div>
+                                <div id="pred-stat-slope" style="color: #3fb950; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Mean EPS: The average earnings per share across all observations in the sample.">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Mean EPS</div>
+                                <div id="pred-stat-mean" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Std Dev: The standard deviation of EPS, measuring how much earnings vary across quarters and companies.">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Std Dev</div>
+                                <div id="pred-stat-std" style="color: #f0883e; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Observations: The total number of quarter-to-quarter EPS pairs used in the regression analysis.">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Observations</div>
+                                <div id="pred-stat-obs" style="color: #bc8cff; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-2">
+                            <div style="background-color: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 10px; text-align: center; cursor: help;" data-bs-toggle="tooltip" data-bs-placement="top" title="Companies: The number of unique companies included in the predictability analysis.">
+                                <div style="color: #8b949e; font-size: 0.7rem; text-transform: uppercase;">Companies</div>
+                                <div id="pred-stat-companies" style="color: #c9d1d9; font-size: 1.2rem; font-weight: 600;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -557,7 +452,6 @@
 <script>
 var charts = {{ charts | tojson | safe }};
 var mapping = {
-    eps_history: 'eps-history-chart',
     eps_estimates: 'eps-chart',
     estimate_accuracy: 'accuracy-chart',
     revenue: 'revenue-chart',
@@ -568,7 +462,6 @@ var mapping = {
     company_comparison: 'comparison-chart',
     eps_surprise_returns: 'eps-surprise-returns-chart',
     eps_returns_trend: 'eps-returns-trend-chart',
-    revision_trail: 'revision-trail-chart',
     pead: 'pead-chart',
     dispersion: 'dispersion-chart'
 };
@@ -586,37 +479,15 @@ function getSectionYearParams(prefix) {
     return '&year_start=' + yearStart + '&year_end=' + yearEnd;
 }
 
-// === Historical Analysis section (hist-ticker, hist-year-start, hist-year-end) ===
-function updateEpsHistory() {
+// === Convergence & Dispersion section (hist-ticker, hist-year-start, hist-year-end) ===
+function updateConvergence() {
     var ticker = document.getElementById('hist-ticker').value;
-    fetch('/api/chart/eps_history?ticker=' + ticker + getSectionYearParams('hist'))
+    fetch('/api/chart/comparison?ticker=' + ticker + getSectionYearParams('hist'))
         .then(function(response) { return response.json(); })
         .then(function(data) {
             if (data.chart) {
                 var c = JSON.parse(data.chart);
-                Plotly.react('eps-history-chart', c.data, c.layout);
-            }
-        });
-}
-
-function updateRevisionTrail() {
-    var ticker = document.getElementById('hist-ticker').value;
-    var numQ = document.getElementById('revision-quarters').value;
-    fetch('/api/chart/revision_trail?ticker=' + ticker + '&num_quarters=' + numQ + getSectionYearParams('hist'))
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            if (data.chart) {
-                var c = JSON.parse(data.chart);
-                Plotly.react('revision-trail-chart', c.data, c.layout);
-            }
-            if (data.metrics) {
-                var m = data.metrics;
-                document.getElementById('metric-walkdown').textContent = m.walk_down_pct !== null ? m.walk_down_pct + '%' : '-';
-                document.getElementById('metric-accuracy').textContent = m.median_final_accuracy !== null ? m.median_final_accuracy + '%' : '-';
-                document.getElementById('metric-beat-rate').textContent = m.beat_rate !== null ? m.beat_rate + '%' : '-';
-                document.getElementById('metric-avg-surprise').textContent = m.avg_surprise !== null ? (m.avg_surprise > 0 ? '+' : '') + m.avg_surprise + '%' : '-';
-                document.getElementById('metric-convergence').textContent = m.convergence_month !== null ? m.convergence_month + ' mo' : '-';
-                document.getElementById('metric-quarters').textContent = m.quarters_analyzed !== null ? m.quarters_analyzed : '-';
+                Plotly.react('comparison-chart', c.data, c.layout);
             }
         });
 }
@@ -634,8 +505,7 @@ function updateDispersion() {
 }
 
 function updateHistSection() {
-    updateEpsHistory();
-    updateRevisionTrail();
+    updateConvergence();
     updateDispersion();
 }
 
@@ -659,19 +529,6 @@ function updatePredictability() {
                 document.getElementById('pred-stat-std').textContent = s.std_eps !== null ? '$' + s.std_eps : '-';
                 document.getElementById('pred-stat-obs').textContent = s.n_obs !== null ? s.n_obs : '-';
                 document.getElementById('pred-stat-companies').textContent = s.n_companies !== null ? s.n_companies : '-';
-            }
-        });
-}
-
-// === Estimate Convergence section (comp-ticker, comp-year-start, comp-year-end) ===
-function updateComparison() {
-    var ticker = document.getElementById('comp-ticker').value;
-    fetch('/api/chart/comparison?ticker=' + ticker + getSectionYearParams('comp'))
-        .then(function(response) { return response.json(); })
-        .then(function(data) {
-            if (data.chart) {
-                var c = JSON.parse(data.chart);
-                Plotly.react('comparison-chart', c.data, c.layout);
             }
         });
 }
@@ -925,27 +782,21 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     initRangeSlider();
     updatePredictionCharts();
-    updateRevisionTrail();
+    updateConvergence();
     updatePredictability();
 });
 
 // === Event listeners per section ===
 
-// Historical Analysis section
+// Convergence & Dispersion section
 document.getElementById('hist-ticker').addEventListener('change', updateHistSection);
 document.getElementById('hist-year-start').addEventListener('change', updateHistSection);
 document.getElementById('hist-year-end').addEventListener('change', updateHistSection);
-document.getElementById('revision-quarters').addEventListener('change', updateRevisionTrail);
 
 // Predictability section
 document.getElementById('pred-ticker').addEventListener('change', updatePredictability);
 document.getElementById('pred-year-start').addEventListener('change', updatePredictability);
 document.getElementById('pred-year-end').addEventListener('change', updatePredictability);
-
-// Estimate Convergence section
-document.getElementById('comp-ticker').addEventListener('change', updateComparison);
-document.getElementById('comp-year-start').addEventListener('change', updateComparison);
-document.getElementById('comp-year-end').addEventListener('change', updateComparison);
 
 // Stock Returns section
 document.getElementById('returns-ticker').addEventListener('change', updateReturnsSection);
